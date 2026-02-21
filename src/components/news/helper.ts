@@ -496,3 +496,11 @@ export const calculateReadTime = (text: string): string => {
 // Items per page for pagination
 export const ITEMS_PER_PAGE = 12;
 
+export interface NewsApiResponse {
+  news: ProcessedNewsItem[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}

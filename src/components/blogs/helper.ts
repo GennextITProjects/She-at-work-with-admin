@@ -1,4 +1,4 @@
-"use client";
+
 
 
 // Define types for your blog data
@@ -215,3 +215,4 @@ export const predefinedDateRanges = [
   { value: "3months", label: "Past 3 Months" },
   { value: "custom", label: "Custom Range" },
 ];
+

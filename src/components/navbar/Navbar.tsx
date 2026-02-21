@@ -16,31 +16,46 @@ const navLinks = [
 ];
 
 const aboutDropdownItems = [
-  // { name: "About Us", href: "/about" },
   { name: "Core Team", href: "/about/core-team" },
   { name: "Press Room", href: "/about/press-room" },
 ];
 
 const gettingStartedDropdownItems = [
-  { name: "Government Schemes India", href: "/gettingstarted/government-schemes-india" },
+  {
+    name: "Government Schemes India",
+    href: "/gettingstarted/government-schemes-india",
+  },
   { name: "Global Schemes", href: "/gettingstarted/global-schemes" },
 ];
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  // Desktop dropdown states
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
-  const [isGettingStartedDropdownOpen, setIsGettingStartedDropdownOpen] = useState(false);
+  const [isGettingStartedDropdownOpen, setIsGettingStartedDropdownOpen] =
+    useState(false);
+  // Mobile dropdown states
+  const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
+  const [isMobileGettingStartedOpen, setIsMobileGettingStartedOpen] =
+    useState(false);
+  
   const pathname = usePathname();
   const aboutDropdownRef = useRef<HTMLDivElement>(null);
   const gettingStartedDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns when clicking outside
+  // Close desktop dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (aboutDropdownRef.current && !aboutDropdownRef.current.contains(event.target as Node)) {
+      if (
+        aboutDropdownRef.current &&
+        !aboutDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsAboutDropdownOpen(false);
       }
-      if (gettingStartedDropdownRef.current && !gettingStartedDropdownRef.current.contains(event.target as Node)) {
+      if (
+        gettingStartedDropdownRef.current &&
+        !gettingStartedDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsGettingStartedDropdownOpen(false);
       }
     };
@@ -51,17 +66,44 @@ export const Navbar = () => {
     };
   }, []);
 
-  // Close mobile menu when route changes
+  // Close mobile menu and reset mobile dropdowns when route changes
   useEffect(() => {
     setIsOpen(false);
     setIsAboutDropdownOpen(false);
     setIsGettingStartedDropdownOpen(false);
+    setIsMobileAboutOpen(false);
+    setIsMobileGettingStartedOpen(false);
   }, [pathname]);
 
   // Check if current path is under about section
   const isAboutActive = pathname.startsWith("/about");
   const isGettingStartedActive = pathname.startsWith("/gettingstarted");
   const isContactActive = pathname === "/contact";
+
+  // Handle mobile about dropdown toggle
+  const handleMobileAboutToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMobileAboutOpen(!isMobileAboutOpen);
+    // Close the other mobile dropdown
+    setIsMobileGettingStartedOpen(false);
+  };
+
+  // Handle mobile getting started dropdown toggle
+  const handleMobileGettingStartedToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMobileGettingStartedOpen(!isMobileGettingStartedOpen);
+    // Close the other mobile dropdown
+    setIsMobileAboutOpen(false);
+  };
+
+  // Handle mobile link click
+  const handleMobileLinkClick = () => {
+    setIsOpen(false);
+    setIsMobileAboutOpen(false);
+    setIsMobileGettingStartedOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 bg-background border-b border-border transition-all duration-500">
@@ -104,32 +146,31 @@ export const Navbar = () => {
             })}
 
             {/* ABOUT US DROPDOWN */}
-           {/* ABOUT US DROPDOWN */}
-<div className="relative" ref={aboutDropdownRef}>
-  <div className="flex items-center gap-1">
-    <Link
-      href="/about"
-      className={`
-        text-md font-medium transition-colors duration-300
-        ${isAboutActive ? "text-accent" : "text-foreground hover:text-accent"}
-      `}
-    >
-      About Us
-    </Link>
-    <button
-      onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
-      className={`
-        transition-colors duration-300
-        ${isAboutActive ? "text-accent" : "text-foreground hover:text-accent"}
-      `}
-    >
-      <ChevronDown
-        className={`h-4 w-4 transition-transform duration-300 ${
-          isAboutDropdownOpen ? "rotate-180" : ""
-        }`}
-      />
-    </button>
-  </div>
+            <div className="relative" ref={aboutDropdownRef}>
+              <div className="flex items-center gap-1">
+                <Link
+                  href="/about"
+                  className={`
+                    text-md font-medium transition-colors duration-300
+                    ${isAboutActive ? "text-accent" : "text-foreground hover:text-accent"}
+                  `}
+                >
+                  About Us
+                </Link>
+                <button
+                  onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
+                  className={`
+                    transition-colors duration-300
+                    ${isAboutActive ? "text-accent" : "text-foreground hover:text-accent"}
+                  `}
+                >
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-300 ${
+                      isAboutDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+              </div>
 
               {/* ABOUT DROPDOWN MENU */}
               {isAboutDropdownOpen && (
@@ -162,7 +203,9 @@ export const Navbar = () => {
             {/* GETTING STARTED DROPDOWN */}
             <div className="relative" ref={gettingStartedDropdownRef}>
               <button
-                onClick={() => setIsGettingStartedDropdownOpen(!isGettingStartedDropdownOpen)}
+                onClick={() =>
+                  setIsGettingStartedDropdownOpen(!isGettingStartedDropdownOpen)
+                }
                 className={`
                   flex items-center gap-1 text-md font-medium transition-colors duration-300
                   ${
@@ -173,7 +216,7 @@ export const Navbar = () => {
                 `}
               >
                 Getting Started
-                <ChevronDown 
+                <ChevronDown
                   className={`h-4 w-4 transition-transform duration-300 ${
                     isGettingStartedDropdownOpen ? "rotate-180" : ""
                   }`}
@@ -236,7 +279,14 @@ export const Navbar = () => {
 
           {/* MOBILE TOGGLE */}
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              setIsOpen(!isOpen);
+              // Reset mobile dropdowns when closing mobile menu
+              if (isOpen) {
+                setIsMobileAboutOpen(false);
+                setIsMobileGettingStartedOpen(false);
+              }
+            }}
             className="lg:hidden p-2 text-foreground transition-colors"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -254,7 +304,7 @@ export const Navbar = () => {
                   <Link
                     key={link.name}
                     href={link.href}
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleMobileLinkClick}
                     className={`
                       py-2 text-base font-medium transition-colors
                       ${
@@ -272,9 +322,9 @@ export const Navbar = () => {
               {/* MOBILE ABOUT DROPDOWN */}
               <div className="flex flex-col">
                 <button
-                  onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
+                  onClick={handleMobileAboutToggle}
                   className={`
-                    flex items-center justify-between py-2 text-base font-medium transition-colors text-left
+                    flex items-center justify-between py-2 text-base font-medium transition-colors text-left w-full
                     ${
                       isAboutActive
                         ? "text-accent"
@@ -283,15 +333,15 @@ export const Navbar = () => {
                   `}
                 >
                   About Us
-                  <ChevronDown 
+                  <ChevronDown
                     className={`h-5 w-5 transition-transform duration-300 ${
-                      isAboutDropdownOpen ? "rotate-180" : ""
+                      isMobileAboutOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
                 {/* MOBILE ABOUT DROPDOWN ITEMS */}
-                {isAboutDropdownOpen && (
+                {isMobileAboutOpen && (
                   <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-4">
                     {aboutDropdownItems.map((item) => {
                       const isActive = pathname === item.href;
@@ -300,10 +350,7 @@ export const Navbar = () => {
                         <Link
                           key={item.name}
                           href={item.href}
-                          onClick={() => {
-                            setIsOpen(false);
-                            setIsAboutDropdownOpen(false);
-                          }}
+                          onClick={handleMobileLinkClick}
                           className={`
                             py-2 text-base font-medium transition-colors
                             ${
@@ -317,6 +364,21 @@ export const Navbar = () => {
                         </Link>
                       );
                     })}
+                    {/* Add About Us main page link if needed */}
+                    <Link
+                      href="/about"
+                      onClick={handleMobileLinkClick}
+                      className={`
+                        py-2 text-base font-medium transition-colors
+                        ${
+                          pathname === "/about"
+                            ? "text-accent"
+                            : "text-foreground hover:text-accent"
+                        }
+                      `}
+                    >
+                      About Us (Main)
+                    </Link>
                   </div>
                 )}
               </div>
@@ -324,9 +386,9 @@ export const Navbar = () => {
               {/* MOBILE GETTING STARTED DROPDOWN */}
               <div className="flex flex-col">
                 <button
-                  onClick={() => setIsGettingStartedDropdownOpen(!isGettingStartedDropdownOpen)}
+                  onClick={handleMobileGettingStartedToggle}
                   className={`
-                    flex items-center justify-between py-2 text-base font-medium transition-colors text-left
+                    flex items-center justify-between py-2 text-base font-medium transition-colors text-left w-full
                     ${
                       isGettingStartedActive
                         ? "text-accent"
@@ -335,15 +397,15 @@ export const Navbar = () => {
                   `}
                 >
                   Getting Started
-                  <ChevronDown 
+                  <ChevronDown
                     className={`h-5 w-5 transition-transform duration-300 ${
-                      isGettingStartedDropdownOpen ? "rotate-180" : ""
+                      isMobileGettingStartedOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
                 {/* MOBILE GETTING STARTED DROPDOWN ITEMS */}
-                {isGettingStartedDropdownOpen && (
+                {isMobileGettingStartedOpen && (
                   <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-4">
                     {gettingStartedDropdownItems.map((item) => {
                       const isActive = pathname === item.href;
@@ -352,10 +414,7 @@ export const Navbar = () => {
                         <Link
                           key={item.name}
                           href={item.href}
-                          onClick={() => {
-                            setIsOpen(false);
-                            setIsGettingStartedDropdownOpen(false);
-                          }}
+                          onClick={handleMobileLinkClick}
                           className={`
                             py-2 text-base font-medium transition-colors
                             ${
@@ -376,7 +435,7 @@ export const Navbar = () => {
               {/* MOBILE CONTACT LINK */}
               <Link
                 href="/contact"
-                onClick={() => setIsOpen(false)}
+                onClick={handleMobileLinkClick}
                 className={`
                   py-2 text-base font-medium transition-colors
                   ${
@@ -389,7 +448,10 @@ export const Navbar = () => {
                 Contact
               </Link>
 
-              <Button className="mt-4 bg-accent text-accent-foreground hover:bg-accent/90 transition-all">
+              <Button 
+                className="mt-4 bg-accent text-accent-foreground hover:bg-accent/90 transition-all"
+                onClick={handleMobileLinkClick}
+              >
                 <Link href="/share-your-story">Share Your Story</Link>
               </Button>
             </div>

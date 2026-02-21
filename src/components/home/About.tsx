@@ -37,114 +37,197 @@ const values = [
 const container = {
   hidden: {},
   show: {
-    transition: {
-      staggerChildren: 0.15,
-    },
+    transition: { staggerChildren: 0.13 },
   },
 };
 
 const item = {
-  hidden: { opacity: 0, y: 40 },
+  hidden: { opacity: 0, y: 36 },
   show: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.6,
-      ease: easeOut,
-    },
+    transition: { duration: 0.55, ease: easeOut },
   },
 };
 
 export const About = () => {
   const controls = useAnimation();
   const ref = useRef(null);
-  const isInView = useInView(ref, {
-    amount: 0.1,
-  });
+  const isInView = useInView(ref, { amount: 0.1 });
 
   useEffect(() => {
-    if (isInView) {
-      controls.start("show");
-    } else {
-      controls.start("hidden");
-    }
+    controls.start(isInView ? "show" : "hidden");
   }, [controls, isInView]);
 
   return (
-    <section ref={ref} className="py-10 px-4 sm:py-16 sm:px-8 lg:py-20 lg:px-20 bg-secondary">
-      <div className="container mx-auto">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+    <section
+      ref={ref}
+      className="
+        bg-secondary
+        py-12 px-4
+        sm:py-16 sm:px-8
+        md:py-20 md:px-12
+        lg:py-24 lg:px-16
+        xl:px-20
+      "
+    >
+      <div className="mx-auto max-w-screen-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
-          {/* LEFT CONTENT */}
+          {/* ── LEFT: Text Content ─────────────────────────────────── */}
           <motion.div
             variants={container}
             initial="hidden"
             animate={controls}
+            className="flex flex-col"
           >
+            {/* Badge */}
             <motion.span
               variants={item}
-              className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-md bg-[#3B2E7E] text-white text-xs sm:text-sm font-medium mb-3 sm:mb-4"
+              className="
+                self-start
+                inline-block px-3 py-1 sm:px-4 sm:py-1.5
+                rounded-md bg-[#3B2E7E] text-white
+                text-xs sm:text-sm font-medium
+                mb-3 sm:mb-4
+              "
             >
               About She At Work
             </motion.span>
 
+            {/* Heading */}
             <motion.h2
               variants={item}
-              className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-foreground mb-4 sm:mb-6 leading-tight"
+              className="
+                text-2xl sm:text-3xl md:text-4xl
+                font-display font-bold text-foreground
+                mb-4 sm:mb-5
+                leading-tight
+              "
             >
               Championing Women&apos;s Voices in Business Since 2017
             </motion.h2>
 
+            {/* Primary paragraph */}
             <motion.p
               variants={item}
-              className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-6"
+              className="
+                text-sm sm:text-base md:text-lg
+                text-muted-foreground
+                mb-3 sm:mb-4
+                leading-relaxed
+              "
             >
-              SheAtWork.com germinated with a singular objective: to support women who are looking to start an entrepreneurial venture that aligns with their abilities and skills. Launched in January 2017, our aim is to educate, train, support, and motivate women entrepreneurs globally.
+              SheAtWork.com germinated with a singular objective: to support women who are
+              looking to start an entrepreneurial venture that aligns with their abilities
+              and skills. Launched in January 2017, our aim is to educate, train, support,
+              and motivate women entrepreneurs globally.
             </motion.p>
 
+            {/* Secondary paragraph */}
             <motion.p
               variants={item}
-              className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-6 sm:mb-8"
+              className="
+                text-xs sm:text-sm md:text-base
+                text-muted-foreground
+                mb-6 sm:mb-8
+                leading-relaxed
+              "
             >
-              We provide a storehouse of information to increase awareness on all relevant areas of entrepreneurship—from innovative business ideas and startup funding avenues to legal support and mentor connections.
+              We provide a storehouse of information to increase awareness on all relevant
+              areas of entrepreneurship—from innovative business ideas and startup funding
+              avenues to legal support and mentor connections.
             </motion.p>
 
+            {/* CTA */}
             <motion.div variants={item}>
               <Link href="/about">
-                <Button className="text-[#3B2E7E] font-semibold bg-transparent border-white border-2 text-sm sm:text-base w-full sm:w-auto">
+                <Button
+                  className="
+                    text-[#3B2E7E] font-semibold
+                    bg-transparent border-2 border-white
+                    text-sm sm:text-base
+                    w-full xs:w-auto
+                    px-6 py-2.5
+                    hover:bg-white/10 transition-colors duration-200
+                  "
+                >
                   Learn More About Us
                 </Button>
               </Link>
             </motion.div>
           </motion.div>
 
-          {/* RIGHT VALUES GRID */}
+          {/* ── RIGHT: Values Grid ──────────────────────────────────── */}
           <motion.div
             variants={container}
             initial="hidden"
             animate={controls}
-            className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 lg:mt-0"
+            className="
+              grid grid-cols-2
+              gap-3 sm:gap-4 lg:gap-5
+              mt-2 lg:mt-0
+            "
           >
             {values.map((value) => (
               <motion.div
                 key={value.title}
                 variants={item}
                 className="
-                  group p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-card border border-border/50
+                  group
+                  flex flex-col
+                  p-4 sm:p-5 lg:p-6
+                  rounded-xl sm:rounded-2xl
+                  bg-card border border-border/50
                   transition-all duration-300 ease-out
-                  hover:-translate-y-2 hover:shadow-xl
+                  hover:-translate-y-1.5
+                  hover:shadow-xl
                   hover:border-[#3B2E7E]/30
+                  cursor-default
                 "
               >
-                <div className="inline-flex p-2 sm:p-3 rounded-lg sm:rounded-xl bg-[#e0bba8]/20 text-[#e0bba8] mb-3 sm:mb-4 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  <value.icon className="h-4 w-4 sm:h-6 sm:w-6" />
+                {/* Icon */}
+                <div
+                  className="
+                    inline-flex items-center justify-center
+                    w-9 h-9 sm:w-11 sm:h-11
+                    rounded-lg sm:rounded-xl
+                    bg-[#e0bba8]/20 text-[#e0bba8]
+                    mb-3 sm:mb-4
+                    transition-all duration-300
+                    group-hover:scale-110 group-hover:rotate-3
+                    shrink-0
+                  "
+                >
+                  <value.icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
                 </div>
 
-                <h3 className="text-base sm:text-xl font-display font-bold mb-1 sm:mb-2 group-hover:text-[#3B2E7E]">
+                {/* Title */}
+                <h3
+                  className="
+                    text-sm sm:text-base lg:text-lg
+                    font-display font-bold
+                    mb-1 sm:mb-2
+                    leading-snug
+                    group-hover:text-[#3B2E7E] transition-colors duration-300
+                  "
+                >
                   {value.title}
                 </h3>
 
-                <p className="text-xs sm:text-sm lg:text-md text-muted-foreground leading-relaxed">
+                {/* Description — hidden on xs, visible sm+ */}
+                <p
+                  className="
+                    hidden sm:block
+                    text-xs sm:text-sm lg:text-sm
+                    text-muted-foreground leading-relaxed
+                  "
+                >
+                  {value.description}
+                </p>
+
+                {/* Ultra-compact description for xs only (1–2 lines) */}
+                <p className="sm:hidden text-xs text-muted-foreground leading-relaxed line-clamp-3">
                   {value.description}
                 </p>
               </motion.div>
