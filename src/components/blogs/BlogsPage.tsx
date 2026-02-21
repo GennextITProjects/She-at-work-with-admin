@@ -33,151 +33,19 @@ import {
   StaggerChildren,
 } from "../common/ScrollFade";
 import { ScrollReveal } from "../common/ScrollReveal";
+import { Chip } from "./Chip";
 import {
+  ApiResponse,
   blogCategories,
+  buildApiUrl,
+  buildPageNumbers,
   ITEMS_PER_PAGE,
   predefinedDateRanges,
   ProcessedBlogItem,
+  SearchSuggestion,
 } from "./helper";
 import { SearchSuggestions } from "./SearchSuggestions";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface ApiResponse {
-  blogs: ProcessedBlogItem[];
-  totalPages: number;
-  currentPage: number;
-  totalItems: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
-
-interface SearchSuggestion {
-  id: string;
-  title: string;
-  category: string;
-  author: string;
-  date: string;
-  slug: string;
-  relevance: number;
-}
-
-// ─── URL builder ──────────────────────────────────────────────────────────────
-
-function buildApiUrl(p: {
-  page: number;
-  categories: string[];
-  search: string;
-  countries: string[];
-  dateFrom: string;
-  dateTo: string;
-  readingTimes: string[];
-  proficiencyLevels: string[];
-  states: string[];
-}) {
-  const sp = new URLSearchParams();
-  sp.set("page", String(p.page));
-
-  const cat = p.categories.filter((c) => c !== "All Blogs");
-  if (cat.length === 1) sp.set("category", cat[0]);
-  if (cat.length > 1) sp.set("categories", cat.join(","));
-
-  if (p.search) sp.set("search", p.search);
-
-  if (p.countries.length === 1) sp.set("country", p.countries[0]);
-  if (p.countries.length > 1) sp.set("countries", p.countries.join(","));
-
-  if (p.dateFrom) sp.set("dateFrom", p.dateFrom);
-  if (p.dateTo) sp.set("dateTo", p.dateTo);
-
-  const rt = p.readingTimes.filter((t) => t !== "All Reading Times");
-  if (rt.length) sp.set("readingTimes", rt.join(","));
-
-  const pl = p.proficiencyLevels.filter((l) => l !== "All Levels");
-  if (pl.length) sp.set("proficiency", pl.join(","));
-
-  if (p.states.length) sp.set("states", p.states.join(","));
-
-  return `/api/blogs?${sp.toString()}`;
-}
-
-// ─── Skeleton card ────────────────────────────────────────────────────────────
-
-function SkeletonCard() {
-  return (
-    <div className="bg-card rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden border border-border animate-pulse">
-      <div className="h-40 sm:h-44 bg-muted" />
-      <div className="p-4 sm:p-6 space-y-3">
-        <div className="flex justify-between">
-          <div className="h-5 bg-muted rounded-full w-24" />
-          <div className="h-4 bg-muted rounded w-16" />
-        </div>
-        <div className="h-4 bg-muted rounded w-full" />
-        <div className="h-4 bg-muted rounded w-4/5" />
-        <div className="h-3 bg-muted rounded w-3/5" />
-        <div className="h-3 bg-muted rounded w-1/2" />
-        <div className="pt-2 border-t border-border flex justify-between">
-          <div className="h-3 bg-muted rounded w-20" />
-          <div className="h-3 bg-muted rounded w-10" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Chip helper ──────────────────────────────────────────────────────────────
-
-const COLOR_MAP: Record<string, string> = {
-  primary: "bg-primary/10 text-primary hover:bg-primary/20",
-  blue: "bg-blue-100 text-blue-700 hover:bg-blue-200",
-  green: "bg-green-100 text-green-700 hover:bg-green-200",
-  purple: "bg-purple-100 text-purple-700 hover:bg-purple-200",
-  amber: "bg-amber-100 text-amber-700 hover:bg-amber-200",
-};
-
-function Chip({
-  children,
-  color,
-  icon,
-  onRemove,
-}: {
-  children: React.ReactNode;
-  color: string;
-  icon: React.ReactNode;
-  onRemove: () => void;
-}) {
-  return (
-    <motion.span
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${COLOR_MAP[color] ?? COLOR_MAP.primary}`}
-    >
-      {icon}
-      {children}
-      <button
-        onClick={onRemove}
-        className="ml-1 rounded-full p-0.5 transition-colors"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </motion.span>
-  );
-}
-
-// ─── Pagination page-number builder ──────────────────────────────────────────
-
-function buildPageNumbers(current: number, total: number): (number | "…")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | "…")[] = [1];
-  if (current > 3) pages.push("…");
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-  for (let i = start; i <= end; i++) pages.push(i);
-  if (current < total - 2) pages.push("…");
-  pages.push(total);
-  return pages;
-}
-
+import { SkeletonCard } from "./SkeletonCard";
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BlogsPage() {

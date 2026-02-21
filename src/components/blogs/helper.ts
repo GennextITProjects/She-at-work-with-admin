@@ -216,3 +216,85 @@ export const predefinedDateRanges = [
   { value: "custom", label: "Custom Range" },
 ];
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface ApiResponse {
+  blogs: ProcessedBlogItem[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface SearchSuggestion {
+  id: string;
+  title: string;
+  category: string;
+  author: string;
+  date: string;
+  slug: string;
+  relevance: number;
+}
+
+
+export function buildApiUrl(p: {
+  page: number;
+  categories: string[];
+  search: string;
+  countries: string[];
+  dateFrom: string;
+  dateTo: string;
+  readingTimes: string[];
+  proficiencyLevels: string[];
+  states: string[];
+}) {
+  const sp = new URLSearchParams();
+  sp.set("page", String(p.page));
+
+  const cat = p.categories.filter((c) => c !== "All Blogs");
+  if (cat.length === 1) sp.set("category", cat[0]);
+  if (cat.length > 1) sp.set("categories", cat.join(","));
+
+  if (p.search) sp.set("search", p.search);
+
+  if (p.countries.length === 1) sp.set("country", p.countries[0]);
+  if (p.countries.length > 1) sp.set("countries", p.countries.join(","));
+
+  if (p.dateFrom) sp.set("dateFrom", p.dateFrom);
+  if (p.dateTo) sp.set("dateTo", p.dateTo);
+
+  const rt = p.readingTimes.filter((t) => t !== "All Reading Times");
+  if (rt.length) sp.set("readingTimes", rt.join(","));
+
+  const pl = p.proficiencyLevels.filter((l) => l !== "All Levels");
+  if (pl.length) sp.set("proficiency", pl.join(","));
+
+  if (p.states.length) sp.set("states", p.states.join(","));
+
+  return `/api/blogs?${sp.toString()}`;
+}
+
+
+export const COLOR_MAP: Record<string, string> = {
+  primary: "bg-primary/10 text-primary hover:bg-primary/20",
+  blue: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+  green: "bg-green-100 text-green-700 hover:bg-green-200",
+  purple: "bg-purple-100 text-purple-700 hover:bg-purple-200",
+  amber: "bg-amber-100 text-amber-700 hover:bg-amber-200",
+};
+
+
+export function buildPageNumbers(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  if (current > 3) pages.push("…");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (current < total - 2) pages.push("…");
+  pages.push(total);
+  return pages;
+}
+
+
