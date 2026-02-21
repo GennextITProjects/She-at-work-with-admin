@@ -170,7 +170,7 @@ export default function AboutPage() {
       <PageBanner
         title="Empowering Women Entrepreneurs Since 2017 "
         description="A dynamic one-stop knowledge hub dedicated to amplifying the voices, achievements, and insights of women entrepreneurs globally."
-        image="/finalAboutusbanner.png"
+        image="/aboutus/finalAboutusbanner.png"
       />
 
       {/* ================= OUR STORY ================= */}
