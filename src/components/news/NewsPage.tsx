@@ -555,8 +555,8 @@ export default function NewsPage() {
   return (
     <main className="bg-background min-h-screen">
 
-      {/* ══════════════════ HERO BANNER ══════════════════════════════════ */}
-      <section className="relative h-[470px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
+
+ <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
         <div className="absolute inset-0" style={{ top: 96 }}>
           <div className="block lg:hidden relative w-full h-full">
             <Image
@@ -580,10 +580,15 @@ export default function NewsPage() {
           </div>
         </div>
 
-        <div className="relative z-10 h-full flex pt-2 md:pt-10 lg:items-center">
+        {/* ✅ Text Centered Inside Gradient */}
+        <div className="relative z-10 h-full flex items-center">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl px-4 sm:px-6 lg:px-8">
-              <motion.div initial="hidden" animate="visible" variants={bannerVariants}>
+            <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={bannerVariants}
+              >
                 <h1 className="text-white leading-tight">
                   <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
                     Women in
@@ -591,11 +596,12 @@ export default function NewsPage() {
                   </span>
                 </h1>
               </motion.div>
+
               <motion.p
                 initial="hidden"
                 animate="visible"
                 variants={bannerSubtitleVariants}
-                className="mt-2 sm:mt-6 text-md sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
+                className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
               >
                 Stay informed with the latest news, insights, and success stories from women entrepreneurs worldwide
               </motion.p>
@@ -603,7 +609,6 @@ export default function NewsPage() {
           </div>
         </div>
       </section>
-
       {/* ══════════════════ FEATURED + SIDEBAR ═══════════════════════════ */}
       <ScrollReveal direction="up" delay={0.2} threshold={0}>
         <section className="px-4 sm:px-6 lg:px-8 py-8">

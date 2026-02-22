@@ -22,7 +22,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Cta from "../common/Cta";
-import { PageBanner } from "../PageBanner";
 
 // Define types for your events data
 interface EventItem {
@@ -66,51 +65,51 @@ const eventCategories = [
 // Animation variants
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 30 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     transition: {
       duration: 0.6,
-      ease: "easeOut"
-    }
-  }
+      ease: "easeOut",
+    },
+  },
 };
 
 const fadeInLeft: Variants = {
   hidden: { opacity: 0, x: -50 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     x: 0,
     transition: {
       duration: 0.6,
-      ease: "easeOut"
-    }
-  }
+      ease: "easeOut",
+    },
+  },
 };
 
 const fadeInRight: Variants = {
   hidden: { opacity: 0, x: 50 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     x: 0,
     transition: {
       duration: 0.6,
-      ease: "easeOut"
-    }
-  }
+      ease: "easeOut",
+    },
+  },
 };
 
 const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.9 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     scale: 1,
     transition: {
       type: "spring",
       stiffness: 260,
-      damping: 20
-    }
-  }
+      damping: 20,
+    },
+  },
 };
 
 const staggerContainer: Variants = {
@@ -119,12 +118,28 @@ const staggerContainer: Variants = {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      delayChildren: 0.1
-    }
-  }
+      delayChildren: 0.1,
+    },
+  },
 };
 
-;
+// ── Animation variants ────────────────────────────────────────────────────
+const bannerVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+  },
+};
+const bannerSubtitleVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] },
+  },
+};
 
 // Extract categories from content
 const getCategoryFromContent = (content: string): string => {
@@ -607,7 +622,9 @@ export default function EventsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [processedEvents, setProcessedEvents] = useState<ProcessedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [imagesLoaded, setImagesLoaded] = useState<{ [key: string]: boolean }>({});
+  const [imagesLoaded, setImagesLoaded] = useState<{ [key: string]: boolean }>(
+    {},
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -796,144 +813,93 @@ export default function EventsPage() {
   };
 
   const handleImageLoad = (id: string) => {
-    setImagesLoaded(prev => ({ ...prev, [id]: true }));
+    setImagesLoaded((prev) => ({ ...prev, [id]: true }));
   };
 
   if (isLoading) {
     return (
       <main className="bg-background min-h-screen">
-        <PageBanner
-          title="Events"
-          description="Join workshops, webinars and networking opportunities designed to empower and inspire"
-          image="/FinalEventsbanner.png"
-        />
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-center py-20"
-        >
+        <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-16 h-16 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full"
-            />
-            <p className="text-muted-foreground">Loading events...</p>
+            <div className="w-16 h-16 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-muted-foreground">Loading new events…</p>
           </div>
-        </motion.div>
+        </div>
       </main>
     );
   }
 
   return (
     <main className="bg-background min-h-screen flex flex-col">
-      <ScrollFade>
-  {/* DESKTOP BANNER */}
-  <section className="relative h-[470px] overflow-hidden pt-24 hidden lg:block">
-    <div className="absolute inset-0" style={{ top: "96px" }}>
-      <div
-        className="w-full h-full"
-        style={{
-          backgroundImage: `url(/FinalEventsbanner.png)`,
-          backgroundPosition: "center center",
-          backgroundSize: "cover",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-    </div>
-    <div className="relative z-10 h-full flex items-center">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
-            <h1 className="text-white leading-tight">
-              <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold sm:font-bold">
-                Events
-              </span>
-            </h1>
-          </motion.div>
-          <motion.p
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-            transition={{ delay: 0.2 }}
-            className="mt-4 sm:mt-6 text-md sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
-          >
-            Discover workshops, webinars, and networking events designed to
-            support women entrepreneurs. Explore opportunities for learning,
-            mentoring, and meaningful connections that help your business grow.
-          </motion.p>
+      <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
+        <div className="absolute inset-0" style={{ top: 96 }}>
+          <div className="block lg:hidden relative w-full h-full">
+            <Image
+              src="/events/Mobile-Events.png"
+              alt="News Banner"
+              fill
+              className="object-cover object-center"
+              priority
+              sizes="(max-width: 1024px) 100vw"
+            />
+          </div>
+          <div className="hidden lg:block relative w-full h-full">
+            <Image
+              src="/events/FinalEventsbanner.png"
+              alt="News Banner"
+              fill
+              className="object-cover object-center"
+              priority
+              sizes="(min-width: 1024px) 100vw"
+            />
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  {/* MOBILE/TABLET BANNER */}
-  <section className="relative overflow-hidden pt-24 block lg:hidden">
-    <div className="absolute inset-0 top-24 block lg:hidden">
-      <Image
-        src="/Mobile-Events.png"
-        alt="Events Banner"
-        fill
-        className="object-cover object-center"
-        priority
-      />
-    </div>
-    <div className="absolute inset-0 top-24 hidden lg:block">
-      <Image
-        src="/FinalEventsbanner.png"
-        alt="Events Banner"
-        fill
-        className="object-cover object-center"
-        priority
-      />
-    </div>
-    <div className="relative z-10 flex items-start lg:items-center">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="
-          max-w-3xl
-          mx-auto text-left
-          lg:mx-0 lg:text-left lg:px-8
-          pt-9 sm:pt-16 lg:pt-0
-          sm:pb-[470px] lg:pb-0
-          min-h-[470px] lg:min-h-0
-        ">
-          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
-            <h1 className="text-white leading-tight drop-shadow-lg">
-              <span className="block text-4xl sm:text-5xl lg:text-6xl font-bold">
-                Events
-              </span>
-            </h1>
-          </motion.div>
-          <motion.p
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-            transition={{ delay: 0.2 }}
-            className="mt-4 sm:mt-6 text-base sm:text-lg md:text-xl text-white/90 leading-relaxed drop-shadow-md"
-          >
-            Discover workshops, webinars, and networking events designed to
-            support women entrepreneurs. Explore opportunities for learning,
-            mentoring, and meaningful connections that help your business grow.
-          </motion.p>
+        {/* ✅ Text Centered Inside Gradient */}
+        <div className="relative z-10 h-full flex items-center">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={bannerVariants}
+              >
+                <h1 className="text-white leading-tight">
+                  <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
+                    Events
+                  </span>
+                </h1>
+              </motion.div>
+
+              <motion.p
+                initial="hidden"
+                animate="visible"
+                variants={bannerSubtitleVariants}
+                className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
+              >
+                Discover workshops, webinars, and networking events designed to
+                support women entrepreneurs. Explore opportunities for learning,
+                mentoring, and meaningful connections that help your business
+                grow.
+              </motion.p>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
-</ScrollFade>
+      </section>
 
       {/* ================= FEATURED EVENT ================= */}
       {showFeaturedEvent && featuredEvent && (
         <ScrollFade>
           <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16 flex-1">
             <div className="max-w-screen-xl mx-auto">
-              <motion.div 
+              <motion.div
                 variants={scaleIn}
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: false }}
                 className="grid lg:grid-cols-[65%_35%] bg-card rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl border border-primary/10 hover:shadow-2xl transition-shadow duration-300"
               >
-                <motion.div 
+                <motion.div
                   variants={fadeInLeft}
                   className="relative min-h-48 sm:min-h-64 overflow-hidden bg-gradient-to-br from-muted to-secondary"
                 >
@@ -950,7 +916,9 @@ export default function EventsPage() {
                       alt={featuredEvent.title}
                       fill
                       className={`object-cover transition-opacity duration-500 ${
-                        imagesLoaded[featuredEvent.id] ? 'opacity-100' : 'opacity-0'
+                        imagesLoaded[featuredEvent.id]
+                          ? "opacity-100"
+                          : "opacity-0"
                       }`}
                       priority
                       onLoad={() => handleImageLoad(featuredEvent.id)}
@@ -959,52 +927,67 @@ export default function EventsPage() {
                   </motion.div>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                   variants={fadeInRight}
                   className="p-4 sm:p-6 lg:p-8 flex flex-col justify-center"
                 >
-                  <motion.span 
+                  <motion.span
                     variants={scaleIn}
                     className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-semibold mb-3 sm:mb-4 w-fit"
                   >
                     {featuredEvent.category}
                   </motion.span>
 
-                  <AnimatedText 
-                    as="h2" 
+                  <AnimatedText
+                    as="h2"
                     className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-display font-bold text-foreground mb-3 sm:mb-4"
                   >
                     {featuredEvent.title}
                   </AnimatedText>
 
-                  <AnimatedText delay={0.1} className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-relaxed line-clamp-3">
+                  <AnimatedText
+                    delay={0.1}
+                    className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-relaxed line-clamp-3"
+                  >
                     {featuredEvent.description}
                   </AnimatedText>
 
-                  <motion.div 
+                  <motion.div
                     variants={staggerContainer}
                     className="space-y-3 sm:space-y-4 mb-6 sm:mb-8"
                   >
-                    <motion.div variants={fadeInUp} className="flex items-center gap-2 sm:gap-3 text-foreground">
+                    <motion.div
+                      variants={fadeInUp}
+                      className="flex items-center gap-2 sm:gap-3 text-foreground"
+                    >
                       <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base">
                         {featuredEvent.date}{" "}
                         {featuredEvent.time && `• ${featuredEvent.time}`}
                       </span>
                     </motion.div>
-                    <motion.div variants={fadeInUp} className="flex items-center gap-2 sm:gap-3 text-foreground">
+                    <motion.div
+                      variants={fadeInUp}
+                      className="flex items-center gap-2 sm:gap-3 text-foreground"
+                    >
                       <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base">
                         {featuredEvent.location}
                       </span>
                     </motion.div>
-                    <motion.div variants={fadeInUp} className="flex items-center gap-2 sm:gap-3 text-foreground">
+                    <motion.div
+                      variants={fadeInUp}
+                      className="flex items-center gap-2 sm:gap-3 text-foreground"
+                    >
                       <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base">
                         {featuredEvent.format}
                       </span>
                     </motion.div>
-                    <motion.div variants={fadeInUp} className="flex items-center gap-2 sm:gap-3 text-foreground">
+                    <motion.div
+                      variants={fadeInUp}
+                      className="flex items-center gap-2 sm:gap-3 text-foreground"
+                    >
                       <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
                       <span className="font-semibold text-base sm:text-lg">
                         {featuredEvent.price}
@@ -1012,11 +995,15 @@ export default function EventsPage() {
                     </motion.div>
                   </motion.div>
 
-                  <motion.div 
+                  <motion.div
                     variants={staggerContainer}
                     className="grid grid-cols-2 gap-3 w-full"
                   >
-                    <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <motion.div
+                      variants={scaleIn}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
                       <Button
                         onClick={() => handleCardClick(featuredEvent.slug)}
                         variant="outline"
@@ -1025,7 +1012,11 @@ export default function EventsPage() {
                         View Details
                       </Button>
                     </motion.div>
-                    <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <motion.div
+                      variants={scaleIn}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
                       <Button
                         onClick={(e) => handleContactClick(featuredEvent, e)}
                         className="h-10 sm:h-12 bg-accent text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm sm:text-base w-full"
@@ -1048,7 +1039,7 @@ export default function EventsPage() {
           <div className="grid lg:grid-cols-4 gap-6 sm:gap-8">
             <div className="lg:col-span-3">
               <ScrollFade>
-                <motion.div 
+                <motion.div
                   variants={fadeInUp}
                   initial="hidden"
                   whileInView="visible"
@@ -1071,7 +1062,10 @@ export default function EventsPage() {
 
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     {selectedCategory !== "All Events" && (
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
                         <Button
                           variant="outline"
                           className="flex items-center gap-2 border-2 w-full sm:w-auto"
@@ -1086,7 +1080,10 @@ export default function EventsPage() {
                       </motion.div>
                     )}
 
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
                       <Button
                         variant="outline"
                         className="flex items-center gap-2 border-2 w-full sm:w-auto"
@@ -1102,7 +1099,7 @@ export default function EventsPage() {
 
               <AnimatePresence>
                 {showFilter && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
@@ -1114,7 +1111,10 @@ export default function EventsPage() {
                         {eventCategories.slice(1).map((cat) => (
                           <motion.button
                             key={cat}
-                            whileHover={{ scale: 1.02, backgroundColor: "rgba(var(--primary), 0.1)" }}
+                            whileHover={{
+                              scale: 1.02,
+                              backgroundColor: "rgba(var(--primary), 0.1)",
+                            }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => {
                               setSelectedCategory(cat);
@@ -1137,7 +1137,7 @@ export default function EventsPage() {
               </AnimatePresence>
 
               {filteredEvents.length === 0 ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center py-16"
@@ -1152,7 +1152,10 @@ export default function EventsPage() {
                     There are no upcoming events in the &quot;{selectedCategory}
                     &quot; category yet.
                   </p>
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
                     <Button
                       onClick={() => {
                         setSelectedCategory("All Events");
@@ -1166,7 +1169,7 @@ export default function EventsPage() {
                 </motion.div>
               ) : (
                 <>
-                  <motion.div 
+                  <motion.div
                     variants={staggerContainer}
                     initial="hidden"
                     whileInView="visible"
@@ -1201,17 +1204,19 @@ export default function EventsPage() {
                                 fill
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 className={`object-cover transition-opacity duration-300 ${
-                                  imagesLoaded[event.id] ? 'opacity-100' : 'opacity-0'
+                                  imagesLoaded[event.id]
+                                    ? "opacity-100"
+                                    : "opacity-0"
                                 }`}
                                 onLoad={() => handleImageLoad(event.id)}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
+                                  target.style.display = "none";
                                 }}
                                 loading="lazy"
                               />
                             </motion.div>
-                            <motion.div 
+                            <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: "spring", delay: 0.2 }}
@@ -1224,7 +1229,7 @@ export default function EventsPage() {
                                 {event.day}
                               </div>
                             </motion.div>
-                            <motion.div 
+                            <motion.div
                               initial={{ x: 50, opacity: 0 }}
                               animate={{ x: 0, opacity: 1 }}
                               transition={{ delay: 0.3 }}
@@ -1241,15 +1246,15 @@ export default function EventsPage() {
                               onClick={() => handleCardClick(event.slug)}
                               className="cursor-pointer"
                             >
-                              <motion.span 
+                              <motion.span
                                 variants={scaleIn}
                                 className="inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 sm:mb-3 uppercase"
                               >
                                 {event.category}
                               </motion.span>
 
-                              <AnimatedText 
-                                as="h3" 
+                              <AnimatedText
+                                as="h3"
                                 delay={0.1}
                                 className="text-sm sm:text-base lg:text-lg font-display font-bold text-foreground mb-2 sm:mb-3 line-clamp-2 group-hover:text-primary transition-colors"
                               >
@@ -1257,14 +1262,20 @@ export default function EventsPage() {
                               </AnimatedText>
                             </div>
 
-                            <motion.div 
+                            <motion.div
                               variants={staggerContainer}
                               className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border"
                             >
                               <div className="flex gap-2">
-                                <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <motion.div
+                                  variants={scaleIn}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
                                   <Button
-                                    onClick={(e) => handleContactClick(event, e)}
+                                    onClick={(e) =>
+                                      handleContactClick(event, e)
+                                    }
                                     size="sm"
                                     variant="outline"
                                     className="border-primary text-primary hover:bg-primary hover:text-white"
@@ -1273,7 +1284,11 @@ export default function EventsPage() {
                                     Contact
                                   </Button>
                                 </motion.div>
-                                <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <motion.div
+                                  variants={scaleIn}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
                                   <Button
                                     onClick={() => handleCardClick(event.slug)}
                                     size="sm"
@@ -1290,7 +1305,7 @@ export default function EventsPage() {
                   </motion.div>
 
                   {totalPages > 1 && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
@@ -1303,7 +1318,10 @@ export default function EventsPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
@@ -1374,7 +1392,10 @@ export default function EventsPage() {
                           )}
                         </div>
 
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
@@ -1396,11 +1417,11 @@ export default function EventsPage() {
             {/* SIDEBAR */}
             <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
               <ScrollFade>
-                <motion.div 
+                <motion.div
                   variants={scaleIn}
                   className="bg-card rounded-xl p-5 shadow-lg border border-border"
                 >
-                  <motion.div 
+                  <motion.div
                     variants={fadeInUp}
                     className="flex items-center justify-between mb-4"
                   >
@@ -1410,10 +1431,7 @@ export default function EventsPage() {
                     </h3>
                   </motion.div>
 
-                  <motion.div 
-                    variants={staggerContainer}
-                    className="space-y-4"
-                  >
+                  <motion.div variants={staggerContainer} className="space-y-4">
                     {filteredTrendingEvents.length > 0 ? (
                       filteredTrendingEvents.map((event, index) => (
                         <motion.div
@@ -1424,7 +1442,7 @@ export default function EventsPage() {
                           className="block group cursor-pointer pb-4 border-b border-border last:border-0 last:pb-0 hover:border-primary/30 transition-colors"
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <motion.span 
+                            <motion.span
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ delay: index * 0.1 }}
@@ -1459,17 +1477,14 @@ export default function EventsPage() {
               </ScrollFade>
 
               <ScrollFade>
-                <motion.div 
+                <motion.div
                   variants={scaleIn}
                   className="bg-gradient-to-br from-secondary/50 to-secondary rounded-xl p-5 border border-border"
                 >
                   <h3 className="text-base font-display font-bold text-foreground mb-3">
                     Event Categories
                   </h3>
-                  <motion.div 
-                    variants={staggerContainer}
-                    className="space-y-2"
-                  >
+                  <motion.div variants={staggerContainer} className="space-y-2">
                     {eventCategories.slice(1).map((cat) => (
                       <motion.button
                         key={cat}
@@ -1494,7 +1509,7 @@ export default function EventsPage() {
 
               {selectedCategory !== "All Events" && (
                 <ScrollFade>
-                  <motion.div 
+                  <motion.div
                     variants={scaleIn}
                     className="bg-primary/5 rounded-xl p-5 border border-primary/20"
                   >
@@ -1517,7 +1532,7 @@ export default function EventsPage() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Viewing events in:
                     </p>
-                    <motion.div 
+                    <motion.div
                       variants={scaleIn}
                       className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold text-center shadow-sm"
                     >
@@ -1532,26 +1547,35 @@ export default function EventsPage() {
               )}
 
               <ScrollFade>
-                <motion.div 
+                <motion.div
                   variants={scaleIn}
                   className="bg-card rounded-xl p-5 shadow-lg border border-border"
                 >
                   <h3 className="text-base font-display font-bold text-foreground mb-3">
                     Event Tips
                   </h3>
-                  <motion.ul 
+                  <motion.ul
                     variants={staggerContainer}
                     className="space-y-2 text-xs text-muted-foreground"
                   >
-                    <motion.li variants={fadeInUp} className="flex items-start gap-2">
+                    <motion.li
+                      variants={fadeInUp}
+                      className="flex items-start gap-2"
+                    >
                       <Clock className="h-3 w-3 text-accent mt-0.5 flex-shrink-0" />
                       <span>Register early for best rates</span>
                     </motion.li>
-                    <motion.li variants={fadeInUp} className="flex items-start gap-2">
+                    <motion.li
+                      variants={fadeInUp}
+                      className="flex items-start gap-2"
+                    >
                       <Users className="h-3 w-3 text-accent mt-0.5 flex-shrink-0" />
                       <span>Network with fellow attendees</span>
                     </motion.li>
-                    <motion.li variants={fadeInUp} className="flex items-start gap-2">
+                    <motion.li
+                      variants={fadeInUp}
+                      className="flex items-start gap-2"
+                    >
                       <Calendar className="h-3 w-3 text-accent mt-0.5 flex-shrink-0" />
                       <span>Add events to your calendar</span>
                     </motion.li>
