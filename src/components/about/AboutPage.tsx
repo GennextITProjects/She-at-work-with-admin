@@ -149,6 +149,16 @@ const fadeInLeft: Variants = {
   }
 };
 
+  // ── Animation variants ────────────────────────────────────────────────────
+  const bannerVariants: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
+  };
+  const bannerSubtitleVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] } },
+  };
+
 export default function AboutPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter();
@@ -167,11 +177,59 @@ export default function AboutPage() {
 
   return (
     <main className="bg-background min-h-screen">
-      <PageBanner
-        title="Empowering Women Entrepreneurs Since 2017 "
-        description="A dynamic one-stop knowledge hub dedicated to amplifying the voices, achievements, and insights of women entrepreneurs globally."
-        image="/aboutus/finalAboutusbanner.png"
-      />
+
+           <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
+              <div className="absolute inset-0" style={{ top: 96 }}>
+                <div className="block lg:hidden relative w-full h-full">
+                  <Image
+                    src="/aboutus/Mobile about us.png"
+                    alt="News Banner"
+                    fill
+                    className="object-cover object-center"
+                    priority
+                    sizes="(max-width: 1024px) 100vw"
+                  />
+                </div>
+                <div className="hidden lg:block relative w-full h-full">
+                  <Image
+                    src="/aboutus/finalAboutusbanner.png"
+                    alt="News Banner"
+                    fill
+                    className="object-cover object-center"
+                    priority
+                    sizes="(min-width: 1024px) 100vw"
+                  />
+                </div>
+              </div>
+      
+              {/* ✅ Text Centered Inside Gradient */}
+              <div className="relative z-10 h-full flex items-center">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+                    <motion.div
+                      initial="hidden"
+                      animate="visible"
+                      variants={bannerVariants}
+                    >
+                      <h1 className="text-white leading-tight">
+                        <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
+                        Empowering Women Entrepreneurs Since 2017 
+                        </span>
+                      </h1>
+                    </motion.div>
+      
+                    <motion.p
+                      initial="hidden"
+                      animate="visible"
+                      variants={bannerSubtitleVariants}
+                      className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
+                    >
+                     A dynamic one-stop knowledge hub dedicated to amplifying the voices, achievements, and insights of women entrepreneurs globally.
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+            </section>
 
       {/* ================= OUR STORY ================= */}
       <ScrollFade once={false}> {/* Changed to once: false */}
