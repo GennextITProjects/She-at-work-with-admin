@@ -11,7 +11,7 @@ const DESKTOP_IMAGES = [
   "/home/revisedHomebanner2.png",
 ];
 
-const MOBILE_IMAGES = ["/home/mobileHome.png", "/home/mobileHomeB.png"];
+const MOBILE_IMAGES = ["/home/Mobile Home A.png", "/home/Mobile Home B (1).png"];
 
 const HEADLINES = [
   {
@@ -97,7 +97,7 @@ export const HeroSection = () => {
                 alt="Mobile Hero background"
                 fill
                 priority={index === 0}
-                className="object-cover object-center"
+                className="object-cover object-center "
                 sizes="100vw"
               />
             </div>
