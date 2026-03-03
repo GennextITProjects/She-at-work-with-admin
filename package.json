@@ -2,13 +2,12 @@
   "name": "init",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "migrate:images": "node --env-file=.env migrate-images.mjs"
-  },
+ "scripts": {
+  "build:cache": "tsx src/scripts/build-all-caches.ts",
+  "prebuild": "npm run build:cache",
+  "build": "next build",
+  "dev": "next dev"
+},
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.4",
     "@hookform/resolvers": "^4.1.0",

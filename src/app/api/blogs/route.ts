@@ -1,265 +1,152 @@
+/**
+ * app/api/blogs/route.ts
+ *
+ * Cold start cost: ONE fs.readFileSync + JSON.parse (~5–20ms)
+ * All mapping, sorting, indexing was done at build time.
+ */
 
-import {
-  BlogItem,
-  calculateReadTime,
-  extractAuthor,
-  extractExcerpt,
-  formatDate,
-  getCategoryFromContent,
-  getLocationData,
-  getProficiencyLevel,
-  getReadingTimeCategory,
-  ITEMS_PER_PAGE
-} from "@/components/blogs/helper";
-import { blogsData } from "@/data/Blogs";
+import { ITEMS_PER_PAGE } from "@/components/blogs/helper";
+import fs from "fs";
 import { NextResponse } from "next/server";
+import path from "path";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ProcessedBlogItem {
-  id: string;
-  category: string;
-  title: string;
-  excerpt: string;
-  date: string;
-  rawDate: Date;
-  readTime: string;
-  readingTimeCategory: string;
-  proficiencyLevel: string;
-  author: string;
-  image: string | null;
-  slug: string;
-  state?: string;
-  country?: string;
-  modifiedDate?: string;
+interface BlogItem {
+  id: string; category: string; title: string; excerpt: string;
+  date: string; rawDate: string; readTime: string;
+  readingTimeCategory: string; proficiencyLevel: string;
+  author: string; image: string | null; slug: string;
+  state?: string; country?: string; modifiedDate?: string;
 }
 
-interface CacheStore {
-  items: ProcessedBlogItem[];
-  byCategory: Map<string, number[]>;
-  byCountry: Map<string, number[]>;
-  byReadingTime: Map<string, number[]>;
-  byProficiency: Map<string, number[]>;
-  countries: string[];
-  categories: string[];
-  readingTimes: string[];
-  proficiencyLevels: string[];
-  builtAt: number;
+interface Cache {
+  items: BlogItem[];
+  byCategory: Record<string, number[]>;
+  byCountry:  Record<string, number[]>;
+  byReadingTime: Record<string, number[]>;
+  byProficiency: Record<string, number[]>;
+  bySlug: Record<string, number>;
+  countries: string[]; categories: string[];
+  readingTimes: string[]; proficiencyLevels: string[];
+  totalItems: number; builtAt: number;
 }
 
-// ─── Module-level singleton cache ────────────────────────────────────────────
+// ─── Load once per instance ───────────────────────────────────────────────────
 
-let _cache: CacheStore | null = null;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+let _cache: Cache | null = null;
 
-function buildCache(): CacheStore {
-  const items: ProcessedBlogItem[] = blogsData.map((item: BlogItem) => {
-    const category = getCategoryFromContent(item.post_content);
-
-    const excerpt =
-      item.post_excerpt?.trim()
-        ? item.post_excerpt
-        : extractExcerpt(item.post_content);
-
-    const title = item.post_title
-      ? item.post_title.replace(/&amp;/g, "&")
-      : "Untitled";
-
-    const location = getLocationData(item.ID, item.post_content);
-
-    return {
-      id: String(item.ID ?? Math.random()),
-      category,
-      title,
-      excerpt,
-      date: formatDate(item.post_date),
-      rawDate: new Date(item.post_date),
-      readTime: calculateReadTime(item.post_content),
-      readingTimeCategory: getReadingTimeCategory(item.post_content),
-      proficiencyLevel: getProficiencyLevel(item.post_content),
-      author: extractAuthor(item.post_content),
-      image: item.featured_image_url?.trim() ? item.featured_image_url : null,
-      slug: item.post_name ?? `blog-${item.ID}`,
-      state: location.state,
-      country: location.country,
-      modifiedDate: item.post_modified ? formatDate(item.post_modified) : undefined,
-    };
-  });
-
-  // Sort newest-first once
-  items.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
-
-  // Build index maps
-  const byCategory = new Map<string, number[]>();
-  const byCountry = new Map<string, number[]>();
-  const byReadingTime = new Map<string, number[]>();
-  const byProficiency = new Map<string, number[]>();
-
-  items.forEach((item, idx) => {
-    // Category
-    const catList = byCategory.get(item.category) ?? [];
-    catList.push(idx);
-    byCategory.set(item.category, catList);
-
-    // Country
-    if (item.country) {
-      const cList = byCountry.get(item.country) ?? [];
-      cList.push(idx);
-      byCountry.set(item.country, cList);
-    }
-
-    // Reading time
-    if (item.readingTimeCategory) {
-      const rtList = byReadingTime.get(item.readingTimeCategory) ?? [];
-      rtList.push(idx);
-      byReadingTime.set(item.readingTimeCategory, rtList);
-    }
-
-    // Proficiency
-    if (item.proficiencyLevel) {
-      const pList = byProficiency.get(item.proficiencyLevel) ?? [];
-      pList.push(idx);
-      byProficiency.set(item.proficiencyLevel, pList);
-    }
-  });
-
-  return {
-    items,
-    byCategory,
-    byCountry,
-    byReadingTime,
-    byProficiency,
-    countries: Array.from(byCountry.keys()).sort(),
-    categories: Array.from(byCategory.keys()).sort(),
-    readingTimes: Array.from(byReadingTime.keys()).sort(),
-    proficiencyLevels: Array.from(byProficiency.keys()).sort(),
-    builtAt: Date.now(),
-  };
-}
-
-function getCache(): CacheStore {
-  if (!_cache || (CACHE_TTL_MS > 0 && Date.now() - _cache.builtAt > CACHE_TTL_MS)) {
-    _cache = buildCache();
-  }
+function getCache(): Cache {
+  if (_cache) return _cache;
+  const file = path.join(process.cwd(), "public", "cache", "blogs-cache.json");
+  if (!fs.existsSync(file)) throw new Error("blogs-cache.json missing — run npm run build:cache");
+  _cache = JSON.parse(fs.readFileSync(file, "utf-8")) as Cache;
+  console.log(`[blogs] cache loaded: ${_cache.totalItems} items`);
   return _cache;
 }
 
-// ─── Route handler ────────────────────────────────────────────────────────────
+// ─── Route ───────────────────────────────────────────────────────────────────
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-
-  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
-  const category = searchParams.get("category") ?? "All Blogs";
-  const search = (searchParams.get("search") ?? "").toLowerCase().trim();
-  const country = searchParams.get("country") ?? "";
-  const dateFrom = searchParams.get("dateFrom") ?? "";
-  const dateTo = searchParams.get("dateTo") ?? "";
-  const readingTimesParam = searchParams.get("readingTimes") ?? "";
-  const proficiencyParam = searchParams.get("proficiency") ?? "";
-  const statesParam = searchParams.get("states") ?? "";
-  const metaOnly = searchParams.get("meta") === "1";
+export async function GET(req: Request) {
+  const sp       = new URL(req.url).searchParams;
+  const page     = Math.max(1, parseInt(sp.get("page") ?? "1", 10));
+  const category = sp.get("category") ?? "All Blogs";
+  const search   = (sp.get("search") ?? "").toLowerCase().trim();
+  const country  = sp.get("country") ?? "";
+  const dateFrom = sp.get("dateFrom") ?? "";
+  const dateTo   = sp.get("dateTo") ?? "";
+  const rtParam  = sp.get("readingTimes") ?? "";
+  const profParam= sp.get("proficiency") ?? "";
+  const statesPar= sp.get("states") ?? "";
+  const slugParam= sp.get("slug") ?? "";
+  const metaOnly = sp.get("meta") === "1";
 
   try {
-    const cache = getCache();
+    const c = getCache();
 
-    // ── Metadata-only response ────────────────────────────────────────────
+    // ── Single slug lookup ────────────────────────────────────────────────
+    if (slugParam) {
+      const idx = c.bySlug[slugParam];
+      if (idx === undefined)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ blog: c.items[idx] }, {
+        headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
+      });
+    }
+
+    // ── Metadata only ─────────────────────────────────────────────────────
     if (metaOnly) {
-      return NextResponse.json(
-        {
-          countries: cache.countries,
-          categories: cache.categories,
-          readingTimes: cache.readingTimes,
-          proficiencyLevels: cache.proficiencyLevels,
-        },
-        {
-          headers: {
-            "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
-          },
-        }
-      );
+      return NextResponse.json({
+        countries: c.countries, categories: c.categories,
+        readingTimes: c.readingTimes, proficiencyLevels: c.proficiencyLevels,
+      }, { headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" } });
     }
 
-    // ── Determine candidate indices ───────────────────────────────────────
+    // ── Candidate indices ─────────────────────────────────────────────────
     let indices: number[];
+    if (category !== "All Blogs" && c.byCategory[category])
+      indices = c.byCategory[category];
+    else if (country && c.byCountry[country])
+      indices = c.byCountry[country];
+    else
+      indices = Array.from({ length: c.items.length }, (_, i) => i);
 
-    if (category !== "All Blogs" && cache.byCategory.has(category)) {
-      indices = cache.byCategory.get(category)!;
-    } else if (country && cache.byCountry.has(country)) {
-      indices = cache.byCountry.get(country)!;
-    } else {
-      indices = Array.from({ length: cache.items.length }, (_, i) => i);
-    }
+    // ── Filters ───────────────────────────────────────────────────────────
+    const readingTimes      = rtParam   ? rtParam.split(",")    : [];
+    const proficiencyLevels = profParam ? profParam.split(",")  : [];
+    const states            = statesPar ? statesPar.split(",")  : [];
 
-    // ── Parse filter arrays ───────────────────────────────────────────────
-    const readingTimes = readingTimesParam ? readingTimesParam.split(",") : [];
-    const proficiencyLevels = proficiencyParam ? proficiencyParam.split(",") : [];
-    const states = statesParam ? statesParam.split(",") : [];
+    let fromDate: Date | null = null, toDate: Date | null = null;
+    if (dateFrom) { fromDate = new Date(dateFrom); fromDate.setHours(0,0,0,0); if (isNaN(fromDate.getTime())) fromDate = null; }
+    if (dateTo)   { toDate   = new Date(dateTo);   toDate.setHours(23,59,59,999); if (isNaN(toDate.getTime()))   toDate   = null; }
 
-    let fromDate: Date | null = null;
-    let toDate: Date | null = null;
-    if (dateFrom) { fromDate = new Date(dateFrom); fromDate.setHours(0, 0, 0, 0); }
-    if (dateTo) { toDate = new Date(dateTo); toDate.setHours(23, 59, 59, 999); }
-
-    // ── Single-pass filter ────────────────────────────────────────────────
-    const filtered: ProcessedBlogItem[] = [];
-
+    const filtered: BlogItem[] = [];
     for (const idx of indices) {
-      const item = cache.items[idx];
-
+      const item = c.items[idx];
+      if (!item) continue;
       if (category !== "All Blogs" && item.category !== category) continue;
       if (country && item.country !== country) continue;
-      if (fromDate && item.rawDate < fromDate) continue;
-      if (toDate && item.rawDate > toDate) continue;
-      if (states.length > 0 && (!item.state || !states.includes(item.state))) continue;
-      if (readingTimes.length > 0 && !readingTimes.includes(item.readingTimeCategory)) continue;
-      if (proficiencyLevels.length > 0 && !proficiencyLevels.includes(item.proficiencyLevel)) continue;
-
-      // Full-text search (most expensive — last)
+      if (fromDate || toDate) {
+        const d = new Date(item.rawDate);
+        if (fromDate && d < fromDate) continue;
+        if (toDate   && d > toDate)   continue;
+      }
+      if (states.length            && (!item.state || !states.includes(item.state))) continue;
+      if (readingTimes.length      && !readingTimes.includes(item.readingTimeCategory)) continue;
+      if (proficiencyLevels.length && !proficiencyLevels.includes(item.proficiencyLevel)) continue;
       if (search) {
-        const hit =
-          item.title.toLowerCase().includes(search) ||
-          item.excerpt.toLowerCase().includes(search) ||
-          item.category.toLowerCase().includes(search) ||
-          item.author.toLowerCase().includes(search) ||
-          (item.state?.toLowerCase().includes(search) ?? false) ||
-          (item.country?.toLowerCase().includes(search) ?? false);
+        const hit = item.title.toLowerCase().includes(search)    ||
+                    item.excerpt.toLowerCase().includes(search)   ||
+                    item.category.toLowerCase().includes(search)  ||
+                    item.author.toLowerCase().includes(search)    ||
+                    (item.state?.toLowerCase().includes(search)   ?? false) ||
+                    (item.country?.toLowerCase().includes(search) ?? false);
         if (!hit) continue;
       }
-
       filtered.push(item);
     }
 
-    // ── Pagination ────────────────────────────────────────────────────────
+    // ── Paginate ──────────────────────────────────────────────────────────
     const totalItems = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
-    const safePage = Math.min(page, totalPages);
-    const start = (safePage - 1) * ITEMS_PER_PAGE;
-    const pageItems = filtered.slice(start, start + ITEMS_PER_PAGE);
+    const safePage   = Math.min(page, totalPages);
+    const start      = (safePage - 1) * ITEMS_PER_PAGE;
 
-    // ── Serialise ─────────────────────────────────────────────────────────
-    const blogs = pageItems.map(({ rawDate, ...rest }) => ({
-      ...rest,
-      rawDate: rawDate.toISOString(),
-    }));
-
-    return NextResponse.json(
-      {
-        blogs,
-        totalPages,
-        currentPage: safePage,
-        totalItems,
-        hasNextPage: safePage < totalPages,
-        hasPrevPage: safePage > 1,
+    return NextResponse.json({
+      blogs: filtered.slice(start, start + ITEMS_PER_PAGE),
+      totalPages, currentPage: safePage, totalItems,
+      hasNextPage: safePage < totalPages,
+      hasPrevPage: safePage > 1,
+    }, {
+      headers: {
+        "Cache-Control": search
+          ? "no-store"
+          : "public, max-age=60, stale-while-revalidate=300",
       },
-      {
-        headers: {
-          "Cache-Control": "public, max-age=60, stale-while-revalidate=120",
-        },
-      }
-    );
-  } catch (error) {
-    console.error("Blogs API error:", error);
+    });
+
+  } catch (err) {
+    console.error("[blogs] error:", err);
     return NextResponse.json({ error: "Failed to fetch blogs" }, { status: 500 });
   }
 }
