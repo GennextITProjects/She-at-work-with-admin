@@ -2,12 +2,12 @@
   "name": "init",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "build:cache": "tsx src/scripts/build-all-caches.ts",
-    "prebuild": "npm run build:cache",
-    "build": "next build",
-    "dev": "next dev"
-  },
+ "scripts": {
+  "build:cache": "tsx src/scripts/build-all-caches.ts",
+  "prebuild": "npm run build:cache",
+  "build": "next build",
+  "dev": "next dev"
+},
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.4",
     "@hookform/resolvers": "^4.1.0",
@@ -50,7 +50,6 @@
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.1.0",
-    "ws": "^8.19.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -59,7 +58,6 @@
     "@types/nodemailer": "^6.4.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.30.4",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",

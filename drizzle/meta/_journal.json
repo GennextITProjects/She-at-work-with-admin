@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1772691967421,
-      "tag": "0000_brown_bastion",
+      "when": 1740045834915,
+      "tag": "0000_classy_valeria_richards",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1772694801809,
-      "tag": "0001_stormy_firebrand",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1772696461055,
-      "tag": "0002_glamorous_agent_brand",
+      "when": 1740051907719,
+      "tag": "0001_perpetual_diamondback",
       "breakpoints": true
     }
   ]
