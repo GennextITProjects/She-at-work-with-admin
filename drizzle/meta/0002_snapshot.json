@@ -1,6 +1,6 @@
 {
-  "id": "9808775d-5f34-468a-be9c-9cf1cf063edc",
-  "prevId": "bc5b18ef-6596-420e-a040-5d5e368f9f22",
+  "id": "29242cdc-bedd-4423-bbc4-528488f85f67",
+  "prevId": "9808775d-5f34-468a-be9c-9cf1cf063edc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -67,21 +67,6 @@
             },
             {
               "expression": "content_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "categories_slug_key": {
-          "name": "categories_slug_key",
-          "columns": [
-            {
-              "expression": "slug",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -404,6 +389,7 @@
             }
           ],
           "isUnique": true,
+          "where": "\"content\".\"wp_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
