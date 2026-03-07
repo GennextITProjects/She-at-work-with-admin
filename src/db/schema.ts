@@ -143,17 +143,11 @@ export const TagsTable = pgTable(
 );
 
 // ─── Content ──────────────────────────────────────────────────────────────────
-
 export const ContentTable = pgTable(
   "content",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
-
-    // ✅ FIX: partial unique index — only enforce uniqueness when wpId is NOT NULL
-    // This prevents the null collision bug where multiple posts without a wpId
-    // would fail on the second insert because PostgreSQL treats NULL as unique.
     wpId: text("wp_id"),
-
     title: text("title").notNull(),
     slug: text("slug").notNull(),
     summary: text("summary"),
@@ -176,17 +170,33 @@ export const ContentTable = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    // Partial unique index: only unique when wp_id is not null
     uniqueIndex("content_wp_id_key")
       .on(table.wpId)
       .where(sql`${table.wpId} IS NOT NULL`),
+
     uniqueIndex("content_slug_key").on(table.slug),
+
     index("content_type_idx").on(table.contentType),
     index("content_status_idx").on(table.status),
     index("content_published_at_idx").on(table.publishedAt),
     index("content_category_id_idx").on(table.categoryId),
-    index("content_created_by_idx").on(table.createdBy),
-    index("content_type_status_idx").on(table.contentType, table.status),
+
+    // ⭐ MOST IMPORTANT
+    index("content_type_status_published_idx").on(
+      table.contentType,
+      table.status,
+      table.publishedAt
+    ),
+    index("content_slug_status_idx").on(
+  table.slug,
+  table.status
+),
+
+index("content_related_query_idx").on(
+  table.categoryId,
+  table.status,
+  table.publishedAt
+)
   ]
 );
 

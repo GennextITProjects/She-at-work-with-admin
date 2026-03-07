@@ -22,6 +22,20 @@
       "when": 1772696461055,
       "tag": "0002_glamorous_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772871714037,
+      "tag": "0003_lean_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772874466977,
+      "tag": "0004_nappy_prowler",
+      "breakpoints": true
     }
   ]
 }

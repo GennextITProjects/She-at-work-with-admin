@@ -11,7 +11,9 @@ import {
   Settings,
   Shield,
   TrendingUp,
-  Users
+  Users,
+  FolderTree,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,7 +23,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles: string[];
-  group?: "common" | "user" | "author" | "admin" | "superadmin";
+  group?: "common" | "user" | "admin" | "superadmin";
 }
 
 interface DashboardSidebarProps {
@@ -37,79 +39,46 @@ export default function DashboardSidebar({ role }: DashboardSidebarProps) {
       href: "/dashboard",
       label: "Overview",
       icon: <Home className="h-5 w-5" />,
-      roles: ["USER", "AUTHOR", "ADMIN", "SUPER_ADMIN"],
+      roles: ["USER", "ADMIN", "SUPER_ADMIN"],
       group: "common"
     },
     {
       href: "/dashboard/settings",
       label: "Settings",
       icon: <Settings className="h-5 w-5" />,
-      roles: ["USER", "AUTHOR", "ADMIN", "SUPER_ADMIN"],
+      roles: ["USER", "ADMIN", "SUPER_ADMIN"],
       group: "common"
     },
 
-    // Author specific (NOT for SUPER_ADMIN)
-
-        {
-      href: "/dashboard/author/content",
-      label: "content",
-      icon: <TrendingUp className="h-5 w-5" />,
-      roles: ["AUTHOR"],
-      group: "author"
-    },
+    // Admin specific (ADMIN and SUPER_ADMIN can access)
     {
-      href: "/dashboard/author/stories",
-      label: "Success Stories",
-      icon: <TrendingUp className="h-5 w-5" />,
-      roles: ["AUTHOR"],
-      group: "author"
-    },
-    {
-      href: "/dashboard/author/analytics",
-      label: "My Analytics",
-      icon: <BarChart3 className="h-5 w-5" />,
-      roles: ["AUTHOR"],
-      group: "author"
-    },
-
-    // Admin specific (NOT for SUPER_ADMIN)
-
-     {
       href: "/dashboard/admin/categories",
       label: "Categories",
-      icon: <BarChart3 className="h-5 w-5" />,
-      roles: ["ADMIN"],
+      icon: <FolderTree className="h-5 w-5" />,
+      roles: ["ADMIN", "SUPER_ADMIN"],
       group: "admin"
     },
     {
       href: "/dashboard/admin/content",
       label: "Content Moderation",
       icon: <FileCheck className="h-5 w-5" />,
-      roles: ["ADMIN"],
+      roles: ["ADMIN", "SUPER_ADMIN"],
       group: "admin"
     },
-    // {
-    //   href: "/dashboard/admin/events",
-    //   label: "Event Management",
-    //   icon: <Calendar className="h-5 w-5" />,
-    //   roles: ["ADMIN"],
-    //   group: "admin"
-    // },
-    // {
-    //   href: "/dashboard/admin/stories",
-    //   label: "Story Review",
-    //   icon: <TrendingUp className="h-5 w-5" />,
-    //   roles: ["ADMIN"],
-    //   group: "admin"
-    // },
-    // {
-    //   href: "/dashboard/admin/analytics",
-    //   label: "Platform Analytics",
-    //   icon: <BarChart3 className="h-5 w-5" />,
-    //   roles: ["ADMIN"],
-    //   group: "admin"
-    // },
-    
+    {
+      href: "/dashboard/admin/story-submissions",
+      label: "Story Submissions",
+      icon: <TrendingUp className="h-5 w-5" />,
+      roles: ["ADMIN", "SUPER_ADMIN"],
+      group: "admin"
+    },
+    {
+      href: "/dashboard/admin/contact-submissions",
+      label: "Contact Submissions",
+      icon: <Mail className="h-5 w-5" />,
+      roles: ["ADMIN", "SUPER_ADMIN"],
+      group: "admin"
+    },
 
     // Super Admin specific (ONLY for SUPER_ADMIN)
     {
@@ -150,14 +119,36 @@ export default function DashboardSidebar({ role }: DashboardSidebarProps) {
   // Group items by category for better organization
   const groupedItems = {
     common: filteredNavItems.filter(item => item.group === 'common'),
-    user: filteredNavItems.filter(item => item.group === 'user'),
-    author: filteredNavItems.filter(item => item.group === 'author'),
     admin: filteredNavItems.filter(item => item.group === 'admin'),
     superadmin: filteredNavItems.filter(item => item.group === 'superadmin'),
   };
 
   // Only show groups that have items for the current role
   const visibleGroups = Object.entries(groupedItems).filter(([_, items]) => items.length > 0);
+
+  // Determine user role display name
+  const getRoleDisplayName = () => {
+    switch(role) {
+      case 'SUPER_ADMIN':
+        return 'Super Admin Panel';
+      case 'ADMIN':
+        return 'Administration';
+      default:
+        return 'User Panel';
+    }
+  };
+
+  // Determine role description
+  const getRoleDescription = () => {
+    switch(role) {
+      case 'SUPER_ADMIN':
+        return 'Manage system users, admins, and platform configuration';
+      case 'ADMIN':
+        return 'Moderate content, manage categories, and review submissions';
+      default:
+        return 'Access your dashboard and settings';
+    }
+  };
 
   return (
     <aside className="w-64 bg-card border-r border-border min-h-[calc(100vh-4rem)]">
@@ -173,7 +164,7 @@ export default function DashboardSidebar({ role }: DashboardSidebarProps) {
             )}
             <div className="space-y-1">
               {items.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href);
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
                     key={item.href}
@@ -204,23 +195,22 @@ export default function DashboardSidebar({ role }: DashboardSidebarProps) {
             </div>
           </div>
         ))}
+
+        {/* Show message if no nav items */}
+        {visibleGroups.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">No navigation items available</p>
+          </div>
+        )}
       </nav>
 
       {/* Role-specific info panel */}
       <div className="mt-8 mx-4 p-4 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl border border-border">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-          {role === 'SUPER_ADMIN' ? 'Super Admin Panel' :
-           role === 'ADMIN' ? 'Administration' :
-           role === 'AUTHOR' ? 'Author Workspace' : 'User Panel'}
+          {getRoleDisplayName()}
         </h3>
         <p className="text-xs text-muted-foreground">
-          {role === 'SUPER_ADMIN' 
-            ? 'Manage system users, admins, and platform configuration'
-            : role === 'ADMIN'
-            ? 'Moderate content, manage events, and review stories'
-            : role === 'AUTHOR'
-            ? 'Manage your stories and track analytics'
-            : 'Access your dashboard and settings'}
+          {getRoleDescription()}
         </p>
       </div>
     </aside>
