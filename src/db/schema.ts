@@ -12,7 +12,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// ENUMS //////////////////////////////////
+////////////////////////////////////////////////////////////
 
 export const UserRole = pgEnum("user_role", [
   "SUPER_ADMIN",
@@ -42,32 +44,47 @@ export const resourceScopeEnum = pgEnum("resource_scope", [
   "GLOBAL",
 ]);
 
-// ─── Users ────────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// USERS //////////////////////////////////
+////////////////////////////////////////////////////////////
 
 export const UsersTable = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
+
     name: text("name").notNull(),
+
     email: text("email").notNull(),
+
     emailVerified: timestamp("email_verified", { mode: "date" }),
+
     isActive: boolean("is_active").default(true).notNull(),
+
     password: text("password"),
+
     mobile: text("mobile"),
+
     image: text("image"),
+
     phoneVerified: timestamp("phone_verified", { mode: "date" }),
+
     role: UserRole("role").default("USER").notNull(),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
+
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("users_email_key").on(table.email),
+
     index("users_role_idx").on(table.role),
+
     index("users_active_idx").on(table.isActive),
   ]
 );
 
-// ─── Email Verification Tokens ────────────────────────────────────────────────
+
 
 export const EmailVerificationTokenTable = pgTable(
   "email_verification_tokens",
@@ -101,147 +118,236 @@ export const PasswordResetTokenTable = pgTable(
   ]
 );
 
-// ─── Categories ───────────────────────────────────────────────────────────────
-// Has a contentType column so blog sub-categories (Digital Marketing, etc.)
-// are separate from News / Entrechat / Event categories.
+////////////////////////////////////////////////////////////
+//////////////////// CATEGORIES //////////////////////////////
+////////////////////////////////////////////////////////////
 
 export const CategoriesTable = pgTable(
   "categories",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
+
     name: text("name").notNull(),
+
     slug: text("slug").notNull(),
+
     description: text("description"),
+
     contentType: contentTypeEnum("content_type").notNull(),
-    isActive: boolean("is_active").notNull().default(true),
+
+    isActive: boolean("is_active").default(true).notNull(),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    // slug must be unique per content type (same slug can exist for BLOG and NEWS)
-    uniqueIndex("categories_slug_content_type_key").on(table.slug, table.contentType),
-    index("categories_active_idx").on(table.isActive),
+    uniqueIndex("categories_slug_content_type_key").on(
+      table.slug,
+      table.contentType
+    ),
+
+    index("categories_slug_idx").on(table.slug),
+
     index("categories_content_type_idx").on(table.contentType),
+
+    index("categories_active_idx").on(table.isActive),
   ]
 );
 
-// ─── Tags ─────────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// TAGS ///////////////////////////////////
+////////////////////////////////////////////////////////////
 
 export const TagsTable = pgTable(
   "tags",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
+
     name: text("name").notNull(),
+
     slug: text("slug").notNull(),
-    usageCount: integer("usage_count").notNull().default(0),
+
+    usageCount: integer("usage_count").default(0).notNull(),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("tags_name_key").on(table.name),
+
     uniqueIndex("tags_slug_key").on(table.slug),
+
     index("tags_usage_count_idx").on(table.usageCount),
   ]
 );
 
-// ─── Content ──────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// CONTENT ////////////////////////////////
+////////////////////////////////////////////////////////////
+
 export const ContentTable = pgTable(
   "content",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
+
     wpId: text("wp_id"),
+
     title: text("title").notNull(),
+
     slug: text("slug").notNull(),
+
     summary: text("summary"),
+
     content: text("content").notNull(),
-    contentType: contentTypeEnum("content_type").notNull().default("BLOG"),
-    categoryId: uuid("category_id").references(() => CategoriesTable.id, {
-      onDelete: "set null",
-    }),
-    createdBy: uuid("created_by").references(() => UsersTable.id, {
-      onDelete: "set null",
-    }),
+
+    contentType: contentTypeEnum("content_type")
+      .default("BLOG")
+      .notNull(),
+
+    categoryId: uuid("category_id").references(
+      () => CategoriesTable.id,
+      { onDelete: "set null" }
+    ),
+
+    createdBy: uuid("created_by").references(
+      () => UsersTable.id,
+      { onDelete: "set null" }
+    ),
+
     authorName: text("author_name"),
+
     featuredImage: text("featured_image"),
+
     externalUrl: text("external_url"),
+
     contentImages: jsonb("content_images"),
+
     readingTime: integer("reading_time"),
-    status: contentStatusEnum("status").notNull().default("PUBLISHED"),
+
+    status: contentStatusEnum("status")
+      .default("PUBLISHED")
+      .notNull(),
+
     publishedAt: timestamp("published_at", { mode: "date" }),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
+
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
+
   (table) => [
+    //////////////////////////////////////////////////////////
+    // UNIQUE INDEXES
+    //////////////////////////////////////////////////////////
+
+    uniqueIndex("content_slug_key").on(table.slug),
+
     uniqueIndex("content_wp_id_key")
       .on(table.wpId)
       .where(sql`${table.wpId} IS NOT NULL`),
 
-    uniqueIndex("content_slug_key").on(table.slug),
+    //////////////////////////////////////////////////////////
+    // STANDARD INDEXES
+    //////////////////////////////////////////////////////////
 
     index("content_type_idx").on(table.contentType),
+
     index("content_status_idx").on(table.status),
-    index("content_published_at_idx").on(table.publishedAt),
+
     index("content_category_id_idx").on(table.categoryId),
 
-    // ⭐ MOST IMPORTANT
+    index("content_published_at_idx").on(table.publishedAt),
+
+    //////////////////////////////////////////////////////////
+    // MOST IMPORTANT INDEX (FOR FRONTEND)
+    //////////////////////////////////////////////////////////
+
     index("content_type_status_published_idx").on(
       table.contentType,
       table.status,
       table.publishedAt
     ),
-    index("content_slug_status_idx").on(
-  table.slug,
-  table.status
-),
 
-index("content_related_query_idx").on(
-  table.categoryId,
-  table.status,
-  table.publishedAt
-)
+    //////////////////////////////////////////////////////////
+    // RELATED POSTS INDEX
+    //////////////////////////////////////////////////////////
+
+    index("content_related_query_idx").on(
+      table.categoryId,
+      table.status,
+      table.publishedAt
+    ),
   ]
 );
 
-// ─── Content Tags (many-to-many) ──────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// CONTENT TAGS ///////////////////////////
+////////////////////////////////////////////////////////////
 
 export const ContentTagsTable = pgTable(
   "content_tags",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
-    contentId: uuid("content_id").notNull().references(() => ContentTable.id, {
-      onDelete: "cascade",
-    }),
-    tagId: uuid("tag_id").notNull().references(() => TagsTable.id, {
-      onDelete: "cascade",
-    }),
+
+    contentId: uuid("content_id")
+      .notNull()
+      .references(() => ContentTable.id, { onDelete: "cascade" }),
+
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => TagsTable.id, { onDelete: "cascade" }),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
+
   (table) => [
-    uniqueIndex("content_tags_content_tag_key").on(table.contentId, table.tagId),
+    uniqueIndex("content_tags_content_tag_key").on(
+      table.contentId,
+      table.tagId
+    ),
+
     index("content_tags_content_id_idx").on(table.contentId),
+
     index("content_tags_tag_id_idx").on(table.tagId),
   ]
 );
 
-// ─── Resources ────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////
+//////////////////// RESOURCES //////////////////////////////
+////////////////////////////////////////////////////////////
 
 export const ResourcesTable = pgTable(
   "resources",
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
+
     scope: resourceScopeEnum("scope").notNull(),
+
     locationKey: text("location_key").notNull(),
+
     locationLabel: text("location_label").notNull(),
+
     title: text("title").notNull(),
+
     description: text("description"),
+
     link: text("link"),
+
     sourceId: integer("source_id"),
-    isActive: boolean("is_active").notNull().default(true),
+
+    isActive: boolean("is_active").default(true).notNull(),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
+
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     index("resources_scope_idx").on(table.scope),
+
     index("resources_location_key_idx").on(table.locationKey),
-    index("resources_scope_location_idx").on(table.scope, table.locationKey),
+
+    index("resources_scope_location_idx").on(
+      table.scope,
+      table.locationKey
+    ),
   ]
 );
 
@@ -306,16 +412,22 @@ export const ContactSubmissionsTable = pgTable(
 
 // ─── Relations ────────────────────────────────────────────────────────────────
 
+
+////////////////////////////////////////////////////////////
+//////////////////// RELATIONS //////////////////////////////
+////////////////////////////////////////////////////////////
+
 export const contentRelations = relations(ContentTable, ({ one, many }) => ({
-  // ✅ FIX: only one field/reference for the FK — contentType is NOT part of the FK
   category: one(CategoriesTable, {
     fields: [ContentTable.categoryId],
     references: [CategoriesTable.id],
   }),
+
   creator: one(UsersTable, {
     fields: [ContentTable.createdBy],
     references: [UsersTable.id],
   }),
+
   tags: many(ContentTagsTable),
 }));
 
@@ -323,26 +435,27 @@ export const tagsRelations = relations(TagsTable, ({ many }) => ({
   contentTags: many(ContentTagsTable),
 }));
 
-export const contentTagsRelations = relations(ContentTagsTable, ({ one }) => ({
-  content: one(ContentTable, {
-    fields: [ContentTagsTable.contentId],
-    references: [ContentTable.id],
-  }),
-  tag: one(TagsTable, {
-    fields: [ContentTagsTable.tagId],
-    references: [TagsTable.id],
-  }),
-}));
+export const contentTagsRelations = relations(
+  ContentTagsTable,
+  ({ one }) => ({
+    content: one(ContentTable, {
+      fields: [ContentTagsTable.contentId],
+      references: [ContentTable.id],
+    }),
 
-export const categoryRelations = relations(CategoriesTable, ({ many }) => ({
-  posts: many(ContentTable),
-}));
+    tag: one(TagsTable, {
+      fields: [ContentTagsTable.tagId],
+      references: [TagsTable.id],
+    }),
+  })
+);
 
-export const userRelations = relations(UsersTable, ({ many }) => ({
-  posts: many(ContentTable),
-  storyReviews: many(StorySubmissionsTable),
-  contactResolutions: many(ContactSubmissionsTable),
-}));
+export const categoryRelations = relations(
+  CategoriesTable,
+  ({ many }) => ({
+    posts: many(ContentTable),
+  })
+);
 
 export const storySubmissionRelations = relations(
   StorySubmissionsTable,
@@ -367,8 +480,16 @@ export const contactSubmissionRelations = relations(
     }),
   })
 );
+export const userRelations = relations(UsersTable, ({ many }) => ({
+  posts: many(ContentTable),
+  storyReviews: many(StorySubmissionsTable),
+  contactResolutions: many(ContactSubmissionsTable),
+}));
 
-// ─── Type exports ─────────────────────────────────────────────────────────────
+
+////////////////////////////////////////////////////////////
+//////////////////// TYPES //////////////////////////////////
+////////////////////////////////////////////////////////////
 
 export type User = typeof UsersTable.$inferSelect;
 export type NewUser = typeof UsersTable.$inferInsert;
@@ -379,11 +500,11 @@ export type NewCategory = typeof CategoriesTable.$inferInsert;
 export type Tag = typeof TagsTable.$inferSelect;
 export type NewTag = typeof TagsTable.$inferInsert;
 
-export type ContentTag = typeof ContentTagsTable.$inferSelect;
-export type NewContentTag = typeof ContentTagsTable.$inferInsert;
-
 export type Content = typeof ContentTable.$inferSelect;
 export type NewContent = typeof ContentTable.$inferInsert;
+
+export type ContentTag = typeof ContentTagsTable.$inferSelect;
+export type NewContentTag = typeof ContentTagsTable.$inferInsert;
 
 export type Resource = typeof ResourcesTable.$inferSelect;
 export type NewResource = typeof ResourcesTable.$inferInsert;

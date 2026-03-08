@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { CategoriesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-type Params = { params: { id: string } };
+
 
 function toSlug(text: string): string {
   return text
@@ -18,13 +18,16 @@ function toSlug(text: string): string {
     .replace(/-+/g, "-");
 }
 
+
 // ─── GET /api/admin/categories/[id] ──────────────────────────────────────────
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const [category] = await db
       .select()
       .from(CategoriesTable)
-      .where(eq(CategoriesTable.id, params.id))
+      .where(eq(CategoriesTable.id,id))
       .limit(1);
 
     if (!category) {
@@ -42,7 +45,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // Body: { name?, description?, isActive? }
 // NOTE: contentType is intentionally NOT updatable — changing it would break
 // the slug uniqueness constraint and orphan existing content rows.
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const body = await req.json();
     const { name, description, isActive } = body;
@@ -67,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const [updated] = await db
       .update(CategoriesTable)
       .set(updates)
-      .where(eq(CategoriesTable.id, params.id))
+      .where(eq(CategoriesTable.id, id))
       .returning();
 
     if (!updated) {
@@ -90,12 +95,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/categories/[id] ───────────────────────────────────────
 // Soft delete (sets isActive=false) to preserve content foreign keys
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(_req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const [updated] = await db
       .update(CategoriesTable)
       .set({ isActive: false })
-      .where(eq(CategoriesTable.id, params.id))
+      .where(eq(CategoriesTable.id, id))
       .returning({ id: CategoriesTable.id });
 
     if (!updated) {

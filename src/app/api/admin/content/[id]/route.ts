@@ -6,10 +6,11 @@ import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable, UsersTable 
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-type Params = { params: { id: string } };
 
 // ─── GET /api/admin/content/[id] ─────────────────────────────────────────────
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(_req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     // ✅ Fetch content + tags in parallel — avoids sequential waterfall
     const [contentRows, tagRows] = await Promise.all([
@@ -37,13 +38,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
         .from(ContentTable)
         .leftJoin(CategoriesTable, eq(ContentTable.categoryId, CategoriesTable.id))
         .leftJoin(UsersTable, eq(ContentTable.createdBy, UsersTable.id))
-        .where(eq(ContentTable.id, params.id))
+        .where(eq(ContentTable.id, id))
         .limit(1),
       db
         .select({ id: TagsTable.id, name: TagsTable.name, slug: TagsTable.slug })
         .from(ContentTagsTable)
         .innerJoin(TagsTable, eq(ContentTagsTable.tagId, TagsTable.id))
-        .where(eq(ContentTagsTable.contentId, params.id)),
+        .where(eq(ContentTagsTable.contentId, id)),
     ]);
 
     if (!contentRows[0]) {
@@ -62,7 +63,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // ─── PATCH /api/admin/content/[id] ───────────────────────────────────────────
 // Partial update — only provided fields are changed
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const body = await req.json();
     const {
@@ -94,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const [updated] = await db
       .update(ContentTable)
       .set(updates)
-      .where(eq(ContentTable.id, params.id))
+      .where(eq(ContentTable.id, id))
       .returning();
 
     if (!updated) {
@@ -110,11 +113,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/content/[id] ──────────────────────────────────────────
 // Hard delete — cascades to content_tags via DB constraint
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(_req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const [deleted] = await db
       .delete(ContentTable)
-      .where(eq(ContentTable.id, params.id))
+      .where(eq(ContentTable.id, id))
       .returning({ id: ContentTable.id });
 
     if (!deleted) {

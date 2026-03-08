@@ -7,10 +7,12 @@ import { UsersTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
-type Params = { params: { id: string } };
+
 
 // ─── GET /api/superadmin/admins/[id] ─────────────────────────────────────────
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(_req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const [admin] = await db
       .select({
@@ -27,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .from(UsersTable)
       .where(
         and(
-          eq(UsersTable.id, params.id),
+          eq(UsersTable.id, id),
           eq(UsersTable.role, "ADMIN") // ✅ scope to ADMIN only — superadmin can't be fetched here
         )
       )
@@ -46,7 +48,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // ─── PATCH /api/superadmin/admins/[id] ───────────────────────────────────────
 // Partial update: name, mobile, image, isActive, password
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const body = await req.json();
     const { name, mobile, image, isActive, password } = body;
@@ -70,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .set(updates)
       .where(
         and(
-          eq(UsersTable.id, params.id),
+          eq(UsersTable.id, id),
           eq(UsersTable.role, "ADMIN")
         )
       )
@@ -95,13 +99,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/superadmin/admins/[id] ──────────────────────────────────────
 // Hard delete — or swap for soft delete (isActive = false) if preferred
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(_req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const [deleted] = await db
       .delete(UsersTable)
       .where(
         and(
-          eq(UsersTable.id, params.id),
+          eq(UsersTable.id, id),
           eq(UsersTable.role, "ADMIN") // ✅ can never accidentally delete a SUPER_ADMIN
         )
       )

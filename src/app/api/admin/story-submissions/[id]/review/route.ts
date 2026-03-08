@@ -6,11 +6,13 @@ import { db } from "@/db";
 import { StorySubmissionsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-type Params = { params: { id: string } };
+
 
 // ─── PATCH /api/admin/story-submissions/[id]/review ───────────────────────────
 // Body: { status: "PUBLISHED" | "REJECTED", reviewedBy, reviewNotes?, publishedContentId? }
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
   try {
     const body = await req.json();
     const { status, reviewedBy, reviewNotes, publishedContentId } = body;
@@ -37,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         publishedContentId: publishedContentId ?? null,
         reviewedAt: new Date(),
       })
-      .where(eq(StorySubmissionsTable.id, params.id))
+      .where(eq(StorySubmissionsTable.id, id))
       .returning();
 
     if (!updated) {
