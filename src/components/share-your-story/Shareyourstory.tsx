@@ -689,7 +689,7 @@ export default function ShareYourStory() {
             <Link href="/entrechat">
               <Button
                 variant="outline"
-                className="h-10 sm:h-12 border-2 border-white text-white hover:bg-white/10 font-semibold px-6 sm:px-8 text-sm sm:text-base"
+                className="h-10 sm:h-12 border-2 border-white text-primary hover:bg-white/10 font-semibold px-6 sm:px-8 text-sm sm:text-base"
               >
                 Read Other Stories
                 <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
