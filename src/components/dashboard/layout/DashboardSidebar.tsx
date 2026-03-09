@@ -38,13 +38,13 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN", "SUPER_ADMIN"],
     group: "admin",
   },
-  {
-    href:  "/dashboard/admin/resources",
-    label: "Resources",
-    icon:  <FileText className="h-5 w-5" />,
-    roles: ["ADMIN", "SUPER_ADMIN"],
-    group: "admin",
-  },
+  // {
+  //   href:  "/dashboard/admin/resources",
+  //   label: "Resources",
+  //   icon:  <FileText className="h-5 w-5" />,
+  //   roles: ["ADMIN", "SUPER_ADMIN"],
+  //   group: "admin",
+  // },
   {
     href:  "/dashboard/admin/categories",
     label: "Categories",
