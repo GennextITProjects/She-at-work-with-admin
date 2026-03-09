@@ -423,7 +423,7 @@ export default function EventsPage() {
       <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
         <div className="absolute inset-0" style={{ top: 96 }}>
           <div className="block lg:hidden relative w-full h-full">
-            <Image src="/events/Mobile-Events.png" alt="News Banner" fill className="object-contain object-center" priority sizes="(max-width: 1024px) 100vw" />
+            <Image src="/events/Mobile-Events.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(max-width: 1024px) 100vw" />
           </div>
           <div className="hidden lg:block relative w-full h-full">
             <Image src="/events/FinalEventsbanner.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(min-width: 1024px) 100vw" />
