@@ -31,9 +31,14 @@ export const CONTENT_TYPES = [
   { value: "PRESS",     label: "Press"     },
 ] as const;
 
+// Status configuration matching ContentModeration
+// DRAFT = "Unpublished" — saved but not live
+// PENDING = awaiting admin review before going live
+// PUBLISHED = live and visible to the public
+// REJECTED = admin declined; author should revise and resubmit
 export const STATUSES = [
-  { value: "DRAFT",     label: "Draft" },
-  { value: "PENDING",   label: "Pending Review" },
+  { value: "DRAFT",     label: "Unpublished" },  // Changed from "Draft" to "Unpublished"
+  { value: "PENDING",   label: "Pending" },       // Removed "Review" for consistency
   { value: "PUBLISHED", label: "Published" },
   { value: "REJECTED",  label: "Rejected" },
 ] as const;
