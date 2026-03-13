@@ -1,7 +1,8 @@
 // app/news/[slug]/page.tsx
 "use client";
 
-import { getCategoryIcon } from "@/components/common/MultiSelectDropdown";
+
+import { getCategoryIcon } from "@/components/content/categoryIcons";
 import { Navbar } from "@/components/navbar/Navbar";
 import { Button } from "@/components/ui/button";
 import {

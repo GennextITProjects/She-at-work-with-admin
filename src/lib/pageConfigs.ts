@@ -1,0 +1,58 @@
+import type { ContentPageConfig } from "@/components/content/types";
+
+export const newsConfig: ContentPageConfig = {
+  contentType:       "NEWS",
+  slug:              "news",
+  bannerDesktop:     "/news/finalNewsbanner.png",
+  bannerMobile:      "/news/mobileBannernews.png",
+  bannerAlt:         "News Banner",
+  bannerTitle:       "Women in Business News",
+  bannerSubtitle:    "Stay informed with the latest news, insights, and success stories from women entrepreneurs worldwide",
+  featuredLabel:     "Featured Story",
+  sidebarTitle:      "Latest Headlines",
+  gridTitle:         "All News Articles",
+  searchPlaceholder: "Search news…",
+  filterTitle:       "Filter Articles",
+  emptyMessage:      "No articles match the current filters.",
+  featuredCta:       "Read Full Story",
+  viewAllLabel:      "View All News",
+  gridSectionId:     "all-news-section",
+};
+
+export const blogsConfig: ContentPageConfig = {
+  contentType:       "BLOG",
+  slug:              "blogs",
+  bannerDesktop:     "/blogs/finalBlogsbanner.png",
+  bannerMobile:      "/blogs/mobileBlogs.png",
+  bannerAlt:         "Blogs Banner",
+  bannerTitle:       "Inspiring Blogs",
+  bannerSubtitle:    "Explore real insights, bold conversations, and practical guidance for women entrepreneurs. From funding and strategy to inspiring journeys, discover ideas that help you start, scale, and grow.",
+  featuredLabel:     "Featured Story",
+  sidebarTitle:      "Trending Now",
+  gridTitle:         "All Blog Articles",
+  searchPlaceholder: "Search blogs…",
+  filterTitle:       "Filter Articles",
+  emptyMessage:      "No articles match the current filters.",
+  featuredCta:       "Read Full Article",
+  viewAllLabel:      "View All Blogs",
+  gridSectionId:     "all-blogs-section",
+};
+
+export const entreChatConfig: ContentPageConfig = {
+  contentType:       "ENTRECHAT",
+  slug:              "entrechat",
+  bannerDesktop:     "/entrechat/FinalEntrechatbanner.png",
+  bannerMobile:      "/entrechat/Mobile-Entrechat.png",
+  bannerAlt:         "EntreChat Banner",
+  bannerTitle:       "EntreChat Community",
+  bannerSubtitle:    "Candid conversations with inspiring women entrepreneurs sharing real journeys and experiences. Discover challenges, strategies, and lessons that inform, inspire, and empower your own path.",
+  featuredLabel:     "Featured Interview",
+  sidebarTitle:      "Trending Now",
+  gridTitle:         "All Interviews",
+  searchPlaceholder: "Search interviews…",
+  filterTitle:       "Filter Interviews",
+  emptyMessage:      "No interviews match the current filters.",
+  featuredCta:       "Read Interview",
+  viewAllLabel:      "View All Interviews",
+  gridSectionId:     "all-interviews-section",
+};

@@ -26,8 +26,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar/Navbar";
-import { getCategoryIcon } from "@/components/common/MultiSelectDropdown";
+
 import EntrechatPostContent from "@/components/enterchat/EntrechatPostContent";
+import { getCategoryIcon } from "@/components/content/categoryIcons";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
