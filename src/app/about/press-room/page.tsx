@@ -2,9 +2,9 @@
 import { Navbar } from "@/components/navbar/Navbar";
 
 import Cta from "@/components/common/Cta";
-import { pressConfig } from "@/lib/pageConfigs";
+import { ContentGridClient, FeaturedSection, fetchInitialContent } from "@/components/content";
 import type { BaseApiResponse } from "@/components/content/types";
-import { ContentBanner, ContentGridClient, FeaturedSection, fetchInitialContent } from "@/components/content";
+import { pressConfig } from "@/lib/pageConfigs";
 
 // ISR: page HTML rebuilt every 60 seconds in the background.
 export const revalidate = 60;
