@@ -1,14 +1,61 @@
-import EventsPage from '@/components/events/EventPage'
-import { Navbar } from '@/components/navbar/Navbar'
-import React from 'react'
+// NO "use client" — this is a Server Component
+import { Navbar } from "@/components/navbar/Navbar";
 
-const Events = () => {
+import Cta from "@/components/common/Cta";
+
+import { eventsConfig } from "@/lib/pageConfigs";
+import type { BaseApiResponse } from "@/components/content/types";
+import { ContentBanner, ContentGridClient, FeaturedSection, fetchInitialContent } from "@/components/content";
+
+// ISR: page HTML rebuilt every 60 seconds in the background.
+// Returning visitors get instant cached HTML — no blank screen, no waterfall.
+export const revalidate = 60;
+
+export const metadata = {
+  title:       "Women Entrepreneurship Events | She At Work",
+  description: "Discover upcoming events, workshops, summits and networking opportunities for women entrepreneurs and business leaders.",
+};
+
+export default async function EventsPage() {
+  const data = (await fetchInitialContent("EVENT", 12)) as BaseApiResponse | null;
+
+  const items      = data?.items      ?? [];
+  const featured   = items[0]         ?? null;
+  const headlines  = items.slice(0, 4);
+  const categories = data?.categories ?? [];
+  const buckets    = data?.readingTimes ?? [];
+
   return (
-    <>
-    <Navbar/>
-  <EventsPage/>
-  </>
-  )
-}
+    <main className="bg-background min-h-screen">
+      <Navbar />
 
-export default Events
+      {/* ── Server-rendered, zero JS ──────────────────────────────────── */}
+      <ContentBanner
+        bannerDesktop={eventsConfig.bannerDesktop}
+        bannerMobile={eventsConfig.bannerMobile}
+        bannerAlt={eventsConfig.bannerAlt}
+        bannerTitle={eventsConfig.bannerTitle}
+        bannerSubtitle={eventsConfig.bannerSubtitle}
+      />
+
+      <FeaturedSection
+        featuredItem={featured}
+        latestItems={headlines}
+        config={eventsConfig}
+        gridSectionId={eventsConfig.gridSectionId}
+      />
+
+      {/* ── Client island: only filters + grid are interactive ───────── */}
+      <ContentGridClient
+        config={eventsConfig}
+        initialItems={items}
+        initialTotal={data?.totalItems ?? 0}
+        initialPages={data?.totalPages ?? 1}
+        categories={categories}
+        readingTimeBuckets={buckets}
+      />
+
+      <Cta />
+    </main>
+  );
+}

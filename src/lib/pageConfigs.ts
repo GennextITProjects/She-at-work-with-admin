@@ -1,5 +1,7 @@
 import type { ContentPageConfig } from "@/components/content/types";
 
+// ─── Existing configs ──────────────────────────────────────────────────────────
+
 export const newsConfig: ContentPageConfig = {
   contentType:       "NEWS",
   slug:              "news",
@@ -55,4 +57,46 @@ export const entreChatConfig: ContentPageConfig = {
   featuredCta:       "Read Interview",
   viewAllLabel:      "View All Interviews",
   gridSectionId:     "all-interviews-section",
+};
+
+// ─── New configs ───────────────────────────────────────────────────────────────
+// TODO: Replace banner image paths with your actual assets once uploaded.
+// Suggested locations: /public/events/ and /public/press/
+
+export const eventsConfig: ContentPageConfig = {
+  contentType:       "EVENT",
+  slug:              "events",
+  bannerDesktop:     "/events/finalEventsbanner.png",   // TODO: upload banner
+  bannerMobile:      "/events/mobileEventsbanner.png",  // TODO: upload banner
+  bannerAlt:         "Events Banner",
+  bannerTitle:       "Events & Opportunities",
+  bannerSubtitle:    "Discover summits, workshops, networking sessions, and pitching events for women entrepreneurs. Find your next opportunity to connect, learn, and grow.",
+  featuredLabel:     "Featured Event",
+  sidebarTitle:      "Coming Up",
+  gridTitle:         "All Events",
+  searchPlaceholder: "Search events…",
+  filterTitle:       "Filter Events",
+  emptyMessage:      "No events match the current filters.",
+  featuredCta:       "View Event Details",
+  viewAllLabel:      "View All Events",
+  gridSectionId:     "all-events-section",
+};
+
+export const pressConfig: ContentPageConfig = {
+  contentType:       "PRESS",
+  slug:              "press",
+  bannerDesktop:     "/press/finalPressbanner.png",     // TODO: upload banner
+  bannerMobile:      "/press/mobilePressbanner.png",    // TODO: upload banner
+  bannerAlt:         "Press Banner",
+  bannerTitle:       "Press & Media",
+  bannerSubtitle:    "She At Work in the news. Read the latest press releases, media features, and coverage celebrating women entrepreneurship.",
+  featuredLabel:     "Featured Coverage",
+  sidebarTitle:      "Latest Press",
+  gridTitle:         "All Press Coverage",
+  searchPlaceholder: "Search press…",
+  filterTitle:       "Filter Coverage",
+  emptyMessage:      "No press items match the current filters.",
+  featuredCta:       "Read Coverage",
+  viewAllLabel:      "View All Press",
+  gridSectionId:     "all-press-section",
 };
