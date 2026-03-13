@@ -324,7 +324,6 @@ export default function EntreChatPage() {
     })();
 
     detectUserLocation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Fetch on filter / page change ──────────────────────────────────────────

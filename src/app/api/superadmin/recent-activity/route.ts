@@ -1,7 +1,5 @@
 // app/api/superadmin/recent-activity/route.ts
 // SUPER_ADMIN: latest activity across all tables — replaces the missing audit log
-/*eslint-disable @typescript-eslint/no-explicit-any */
-
 import { db } from "@/db";
 import {
   ContactSubmissionsTable,

@@ -1,18 +1,18 @@
 // app/news/[slug]/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { notFound } from "next/navigation";
-import Image from "next/image";
-import Link from "next/link";
+import { getCategoryIcon } from "@/components/common/MultiSelectDropdown";
+import { Navbar } from "@/components/navbar/Navbar";
+import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, ArrowRight, Calendar, Clock,
-  Facebook, Linkedin, Mail, Share2, Tag, ExternalLink,
-  Twitter,
+  Facebook, Linkedin, Mail, Share2, Tag,
+  Twitter
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Navbar } from "@/components/navbar/Navbar";
-import { getCategoryIcon } from "@/components/common/MultiSelectDropdown";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -145,14 +145,7 @@ export default function NewsDetailPage({ params }: { params: Promise<{ slug: str
     })();
   }, [params]);
 
-  const openExternalLink = () => {
-    if (news?.externalUrl) {
-      const url = news.externalUrl.startsWith('http') 
-        ? news.externalUrl 
-        : `https://${news.externalUrl}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  };
+
 
   // ── States ────────────────────────────────────────────────────────────────────
   if (isLoading) {
