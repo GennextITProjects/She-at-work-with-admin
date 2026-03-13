@@ -11,13 +11,12 @@ import {
   Filter,
   IndianRupee,
   Mail,
-  TrendingUp,
   Users,
-  X
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Cta from "../common/Cta";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,38 +83,52 @@ const eventCategories = [
   "Other Events",
 ];
 
+// ✅ FIX #7: explicit slug map so "Other Events" → "other-events" matches DB exactly
+const categorySlugMap: Record<string, string> = {
+  "Conferences":  "conferences",
+  "Workshops":    "workshops",
+  "Webinars":     "webinars",
+  "Networking":   "networking",
+  "Seminars":     "seminars",
+  "Forums":       "forums",
+  "Launches":     "launches",
+  "Awards":       "awards",
+  "Festivals":    "festivals",
+  "Other Events": "other-events",
+};
+
 // ─── Animation variants ───────────────────────────────────────────────────────
 
 const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 30 },
+  hidden:  { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 const fadeInLeft: Variants = {
-  hidden: { opacity: 0, x: -50 },
+  hidden:  { opacity: 0, x: -50 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 const fadeInRight: Variants = {
-  hidden: { opacity: 0, x: 50 },
+  hidden:  { opacity: 0, x: 50 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
+  hidden:  { opacity: 0, scale: 0.9 },
   visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 260, damping: 20 } },
 };
 const staggerContainer: Variants = {
-  hidden: { opacity: 0 },
+  hidden:  { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
 };
 const bannerVariants: Variants = {
-  hidden: { opacity: 0, y: 30 },
+  hidden:  { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
 };
 const bannerSubtitleVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden:  { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] } },
 };
 
-// ─── Helper: derive category from content text ────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getCategoryFromContent = (content: string): string => {
   const c = content.toLowerCase();
@@ -131,27 +144,23 @@ const getCategoryFromContent = (content: string): string => {
   return "Other Events";
 };
 
-// ─── Helper: strip HTML and truncate ─────────────────────────────────────────
-
 const extractExcerpt = (content: string, maxLength = 150): string => {
   if (!content) return "No description available";
   const plain = content.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
   return plain.length <= maxLength ? plain : plain.substring(0, maxLength) + "...";
 };
 
-// ─── Helper: location from content ───────────────────────────────────────────
-
 const extractLocation = (content: string): string => {
   const c = content.toLowerCase();
   const known = [
     { keyword: "rio de janeiro", location: "Rio de Janeiro, Brazil" },
-    { keyword: "iit delhi", location: "IIT Delhi, India" },
-    { keyword: "india", location: "India" },
-    { keyword: "brazil", location: "Brazil" },
-    { keyword: "haryana", location: "Haryana, India" },
-    { keyword: "punjab", location: "Punjab, India" },
-    { keyword: "rajasthan", location: "Rajasthan, India" },
-    { keyword: "delhi", location: "Delhi, India" },
+    { keyword: "iit delhi",      location: "IIT Delhi, India" },
+    { keyword: "india",          location: "India" },
+    { keyword: "brazil",         location: "Brazil" },
+    { keyword: "haryana",        location: "Haryana, India" },
+    { keyword: "punjab",         location: "Punjab, India" },
+    { keyword: "rajasthan",      location: "Rajasthan, India" },
+    { keyword: "delhi",          location: "Delhi, India" },
   ];
   for (const k of known) if (c.includes(k.keyword)) return k.location;
   if (c.includes("online") || c.includes("virtual") || c.includes("zoom") || c.includes("webinar")) return "Online";
@@ -159,9 +168,13 @@ const extractLocation = (content: string): string => {
   return "Location TBD";
 };
 
-// ─── Helper: date details ─────────────────────────────────────────────────────
-
+// ✅ FIX #4: check for date ranges before single dates
 const extractDateDetails = (content: string, fallback: string): { date: string; time?: string } => {
+  // Multi-day range first: "15th March to 17th March 2024" style
+  const rangePattern = /(\d+(?:st|nd|rd|th)?\s+[A-Z][a-z]+(?:\s+to\s+\d+(?:st|nd|rd|th)?\s+[A-Z][a-z]+)?\s+\d{4})/gi;
+  const rangeMatch = rangePattern.exec(content);
+  if (rangeMatch?.[1]) return { date: rangeMatch[1].trim() };
+
   const datePatterns = [
     /(\d+(?:st|nd|rd|th)?\s+[A-Z][a-z]+\s+\d{4})/gi,
     /([A-Z][a-z]+\s+\d+(?:\s*,\s*\d{4})?)/gi,
@@ -181,12 +194,11 @@ const extractDateDetails = (content: string, fallback: string): { date: string; 
   }
   try {
     const d = new Date(fallback);
-    if (!isNaN(d.getTime())) return { date: d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) };
+    if (!isNaN(d.getTime()))
+      return { date: d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) };
   } catch { /* fallthrough */ }
   return { date: "Date TBD" };
 };
-
-// ─── Helper: price ────────────────────────────────────────────────────────────
 
 const extractPrice = (content: string): string => {
   const c = content.toLowerCase();
@@ -194,15 +206,10 @@ const extractPrice = (content: string): string => {
   const patterns = [/₹\s*(\d+(?:,\d{3})*)/gi, /Rs\.?\s*(\d+(?:,\d{3})*)/gi, /\$\s*(\d+(?:,\d{3})*)/gi];
   for (const p of patterns) {
     const m = p.exec(content);
-    if (m?.[1]) {
-      const sym = p.toString().includes("$") ? "$" : "₹";
-      return `${sym}${m[1]}`;
-    }
+    if (m?.[1]) return `${p.toString().includes("$") ? "$" : "₹"}${m[1]}`;
   }
   return "Contact for details";
 };
-
-// ─── Helper: format ───────────────────────────────────────────────────────────
 
 const extractFormat = (content: string): string => {
   const c = content.toLowerCase();
@@ -213,13 +220,11 @@ const extractFormat = (content: string): string => {
   return "Format TBD";
 };
 
-// ─── Helper: month/day display ────────────────────────────────────────────────
-
 const parseDateForDisplay = (dateString: string, fallbackDate?: string): { month: string; day: string } => {
   try {
     const monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
     const clean = dateString.replace(/(\d+)(?:st|nd|rd|th)\b/gi, "$1").replace(/\s+to\s+\d+/gi, "").trim();
-    const monthMatch = monthNames.find(m => clean.toLowerCase().includes(m));
+    const monthMatch = monthNames.find((m) => clean.toLowerCase().includes(m));
     let parsed: Date;
     if (monthMatch) {
       parsed = new Date();
@@ -230,59 +235,55 @@ const parseDateForDisplay = (dateString: string, fallbackDate?: string): { month
       parsed = new Date(clean);
       if (isNaN(parsed.getTime())) parsed = fallbackDate ? new Date(fallbackDate) : new Date();
     }
-    return { month: parsed.toLocaleDateString("en-US", { month: "short" }), day: parsed.getDate().toString() };
+    return {
+      month: parsed.toLocaleDateString("en-US", { month: "short" }),
+      day:   parsed.getDate().toString(),
+    };
   } catch {
     return { month: "TBD", day: "?" };
   }
 };
 
-// ─── Transform API item → ProcessedEvent ─────────────────────────────────────
-
 const transformApiItem = (item: ApiContentItem, index: number): ProcessedEvent => {
-  // Use summary first, fall back to extracting from content
-  const rawContent = item.summary ?? "";
-
-  // Category: prefer API category name, derive from content as fallback
-  const category = item.categoryName
-    ? item.categoryName
-    : getCategoryFromContent(rawContent);
-
+  const rawContent  = item.summary ?? "";
+  const category    = item.categoryName ? item.categoryName : getCategoryFromContent(rawContent);
   const description = item.summary
     ? item.summary.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
     : extractExcerpt(rawContent);
-
-  const title = item.title?.replace(/&amp;/g, "&") ?? "Upcoming Event";
+  const title    = item.title?.replace(/&amp;/g, "&") ?? "Upcoming Event";
   const location = extractLocation(rawContent);
-  const format = extractFormat(rawContent);
-  const price = extractPrice(rawContent);
+  const format   = extractFormat(rawContent);
+  const price    = extractPrice(rawContent);
   const postDate = item.publishedAt ?? new Date().toISOString();
   const { date, time } = extractDateDetails(rawContent, postDate);
   const { month, day } = parseDateForDisplay(date, postDate);
-
-  const image =
-    item.featuredImage && item.featuredImage.trim() !== ""
-      ? item.featuredImage
-      : "/placeholder-event.jpg";
+  const image = item.featuredImage && item.featuredImage.trim() !== "" ? item.featuredImage : "/placeholder-event.jpg";
 
   return {
-    id: item.id,
-    category,
-    title,
-    description,
-    date,
-    time,
-    location,
-    format,
-    price,
-    image,
+    id: item.id, category, title, description, date, time,
+    location, format, price, image,
     fullContent: rawContent,
-    slug: item.slug ?? `event-${item.id}`,
+    slug:     item.slug ?? `event-${item.id}`,
     featured: index === 0,
-    month,
-    day,
-    postDate,
+    month, day, postDate,
   };
 };
+
+// ─── Pagination helper (same as NewsPage / BlogsPage) ─────────────────────────
+// ✅ FIX #8: replaces the broken 5-slot logic that broke at page 4 of 6
+
+function buildPageNumbers(current: number, total: number, compact = false): (number | "…")[] {
+  if (compact) {
+    if (total <= 3) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current === 1)     return [1, 2, "…", total];
+    if (current === total) return [1, "…", total - 1, total];
+    return [1, "…", current, "…", total];
+  }
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4)         return [1, 2, 3, 4, 5, "…", total];
+  if (current >= total - 3) return [1, "…", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "…", current - 1, current, current + 1, "…", total];
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -292,17 +293,25 @@ const ITEMS_PER_PAGE = 12;
 
 export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All Events");
-  const [showFilter, setShowFilter] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [processedEvents, setProcessedEvents] = useState<ProcessedEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({});
+  const [showFilter, setShowFilter]             = useState(false);
+  const [currentPage, setCurrentPage]           = useState(1);
+  const [processedEvents, setProcessedEvents]   = useState<ProcessedEvent[]>([]);
+  const [isLoading, setIsLoading]               = useState(true);
+  const [error, setError]                       = useState<string | null>(null);
+  const [totalItems, setTotalItems]             = useState(0);
+  const [totalPages, setTotalPages]             = useState(0);
+
+  // ✅ FIX #3: use Set instead of Record to avoid creating new object on every image load
+  const [imagesLoaded, setImagesLoaded] = useState<Set<string>>(new Set());
+
+  // ✅ FIX #5: separate imageError state so broken images fall back to placeholder
+  const [imageError, setImageError] = useState<Set<string>>(new Set());
+
+
   const router = useRouter();
 
-  // ── Fetch from API whenever page or category changes ─────────────────────
+
+  // ── Fetch from API whenever page or category changes ──────────────────────
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -311,29 +320,22 @@ export default function EventsPage() {
 
         const params = new URLSearchParams({
           contentType: "EVENT",
-          page: String(currentPage),
-          limit: String(ITEMS_PER_PAGE),
+          page:        String(currentPage),
+          limit:       String(ITEMS_PER_PAGE),
         });
 
-        // Pass category slug if a non-"All" filter is active
+        // ✅ FIX #7: use explicit slug map instead of naive .replace(/\s+/g, "-")
         if (selectedCategory !== "All Events") {
-          // Convert display name → slug format (e.g. "Other Events" → "other-events")
-          params.set("category", selectedCategory.toLowerCase().replace(/\s+/g, "-"));
+          params.set("category", categorySlugMap[selectedCategory] ?? selectedCategory.toLowerCase());
         }
 
         const res = await fetch(`/api/content?${params.toString()}`);
         if (!res.ok) throw new Error(`API error: ${res.status}`);
 
         const data: ApiResponse = await res.json();
-
         const processed = data.items.map((item, idx) =>
           transformApiItem(item, (currentPage - 1) * ITEMS_PER_PAGE + idx)
         );
-
-        // Mark first item of first page as featured
-        if (currentPage === 1 && processed.length > 0) {
-          processed[0].featured = true;
-        }
 
         setProcessedEvents(processed);
         setTotalItems(data.totalItems);
@@ -350,21 +352,12 @@ export default function EventsPage() {
     fetchEvents();
   }, [currentPage, selectedCategory]);
 
-  // ── Reset page when category changes ─────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
     setCurrentPage(1);
     setShowFilter(false);
   };
-
-  const featuredEvent = currentPage === 1 ? processedEvents.find((e) => e.featured) : null;
-  // Non-featured events for the grid (on page 1 skip the featured; other pages show all)
-  const gridEvents = currentPage === 1
-    ? processedEvents.filter((e) => !e.featured)
-    : processedEvents;
-
-  // Sidebar "upcoming soon" — first 4 items always
-  const upcomingEvents = processedEvents.slice(0, 4);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -376,18 +369,31 @@ export default function EventsPage() {
   const handleContactClick = (event: ProcessedEvent, e: React.MouseEvent) => {
     e.stopPropagation();
     openEventRegistrationEmail({
-      title: event.title,
-      date: event.date,
-      time: event.time,
+      title:    event.title,
+      date:     event.date,
+      time:     event.time,
       location: event.location,
-      format: event.format,
-      price: event.price,
+      format:   event.format,
+      price:    event.price,
       category: event.category,
     });
   };
 
+  // ✅ FIX #3: Set-based image load tracking
   const handleImageLoad = (id: string) =>
-    setImagesLoaded((prev) => ({ ...prev, [id]: true }));
+    setImagesLoaded((prev) => { const s = new Set(prev); s.add(id); return s; });
+
+  // ✅ FIX #5: Set-based image error tracking → fall back to placeholder
+  const handleImageError = (id: string) =>
+    setImageError((prev) => { const s = new Set(prev); s.add(id); return s; });
+
+  // ✅ FIX #2: featured event is always the first item of the current result set,
+  //           not conditionally only on page 1 — it persists across pages.
+  const featuredEvent = processedEvents.length > 0 ? processedEvents[0] : null;
+  const gridEvents    = processedEvents.slice(1); // remaining cards below featured
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endIndex   = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -419,14 +425,17 @@ export default function EventsPage() {
 
   return (
     <main className="bg-background min-h-screen flex flex-col">
-      {/* ── Banner ── */}
+
+      {/* ── Banner ─────────────────────────────────────────────────────────── */}
       <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
         <div className="absolute inset-0" style={{ top: 96 }}>
           <div className="block lg:hidden relative w-full h-full">
-            <Image src="/events/Mobile-Events.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(max-width: 1024px) 100vw" />
+            <Image src="/events/Mobile-Events.png" alt="News Banner" fill
+              className="object-cover object-center" priority sizes="(max-width: 1024px) 100vw" />
           </div>
           <div className="hidden lg:block relative w-full h-full">
-            <Image src="/events/FinalEventsbanner.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(min-width: 1024px) 100vw" />
+            <Image src="/events/FinalEventsbanner.png" alt="News Banner" fill
+              className="object-cover object-center" priority sizes="(min-width: 1024px) 100vw" />
           </div>
         </div>
         <div className="relative z-10 h-full flex items-center">
@@ -437,38 +446,45 @@ export default function EventsPage() {
                   <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">Events</span>
                 </h1>
               </motion.div>
-              <motion.p initial="hidden" animate="visible" variants={bannerSubtitleVariants} className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl">
-                Discover workshops, webinars, and networking events designed to support women entrepreneurs. Explore opportunities for learning, mentoring, and meaningful connections that help your business grow.
+              <motion.p initial="hidden" animate="visible" variants={bannerSubtitleVariants}
+                className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl">
+                Discover workshops, webinars, and networking events designed to support women entrepreneurs.
+                Explore opportunities for learning, mentoring, and meaningful connections that help your business grow.
               </motion.p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Featured Event ── */}
+      {/* ── Featured Event ──────────────────────────────────────────────────── */}
       {featuredEvent && (
         <ScrollFade>
-          <section className="px-4 sm:px-6 lg:px-8 py-8  flex-1">
+          <section className="px-4 sm:px-6 lg:px-8 py-8 flex-1">
             <div className="max-w-screen-xl mx-auto">
               <motion.div variants={scaleIn} initial="hidden" whileInView="visible" viewport={{ once: false }}
                 className="grid lg:grid-cols-[65%_35%] bg-card rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl border border-primary/10 hover:shadow-2xl transition-shadow duration-300">
+
                 <motion.div variants={fadeInLeft} className="relative min-h-48 sm:min-h-64 overflow-hidden bg-gradient-to-br from-muted to-secondary">
-                  {!imagesLoaded[featuredEvent.id] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+                  {!imagesLoaded.has(featuredEvent.id) && (
+                    <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+                  )}
                   <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.3 }} className="w-full h-full">
                     <Image
-                      src={featuredEvent.image}
+                      src={imageError.has(featuredEvent.id) ? "/placeholder-event.jpg" : featuredEvent.image}
                       alt={featuredEvent.title}
                       fill
-                      className={`object-contain transition-opacity duration-500 ${imagesLoaded[featuredEvent.id] ? "opacity-100" : "opacity-0"}`}
+                      className={`md:object-contain object-cover transition-opacity duration-500 ${imagesLoaded.has(featuredEvent.id) ? "opacity-100" : "opacity-0"}`}
                       priority
                       onLoad={() => handleImageLoad(featuredEvent.id)}
+                      onError={() => handleImageError(featuredEvent.id)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 65vw, 800px"
                     />
                   </motion.div>
                 </motion.div>
 
-                <motion.div variants={fadeInRight} className="p-4  flex flex-col justify-center">
-                  <motion.span variants={scaleIn} className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-semibold mb-3 sm:mb-4 w-fit">
+                <motion.div variants={fadeInRight} className="p-4 flex flex-col justify-center">
+                  <motion.span variants={scaleIn}
+                    className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-semibold mb-3 sm:mb-4 w-fit">
                     {featuredEvent.category}
                   </motion.span>
                   <AnimatedText as="h2" className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-display font-bold text-foreground mb-3 sm:mb-4">
@@ -479,11 +495,7 @@ export default function EventsPage() {
                   </AnimatedText>
 
                   <motion.div variants={staggerContainer} className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                    {[
-                      
-                     
-                      { icon: Users, text: featuredEvent.format },
-                    ].map(({ icon: Icon, text }) => (
+                    {[{ icon: Users, text: featuredEvent.format }].map(({ icon: Icon, text }) => (
                       <motion.div key={text} variants={fadeInUp} className="flex items-center gap-2 sm:gap-3 text-foreground">
                         <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         <span className="font-medium text-sm sm:text-base">{text}</span>
@@ -497,12 +509,14 @@ export default function EventsPage() {
 
                   <motion.div variants={staggerContainer} className="grid grid-cols-2 gap-3 w-full">
                     <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button onClick={() => handleCardClick(featuredEvent.slug)} variant="outline" className="h-10 sm:h-12 border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-all text-sm sm:text-base w-full">
+                      <Button onClick={() => handleCardClick(featuredEvent.slug)} variant="outline"
+                        className="h-10 sm:h-12 border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-all text-sm sm:text-base w-full">
                         View Details
                       </Button>
                     </motion.div>
                     <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button onClick={(e) => handleContactClick(featuredEvent, e)} className="h-10 sm:h-12 bg-accent text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm sm:text-base w-full">
+                      <Button onClick={(e) => handleContactClick(featuredEvent, e)}
+                        className="h-10 sm:h-12 bg-accent text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm sm:text-base w-full">
                         <Mail className="mr-2 h-4 w-4 sm:h-5 sm:w-5" /> Contact
                       </Button>
                     </motion.div>
@@ -514,13 +528,13 @@ export default function EventsPage() {
         </ScrollFade>
       )}
 
-      {/* ── Events Grid + Sidebar ── */}
+      {/* ── Events Grid + Sidebar ───────────────────────────────────────────── */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 bg-secondary/30 flex-1">
         <div className="max-w-screen-xl mx-auto">
-          <div className="grid lg:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
 
-            {/* ── Main grid ── */}
-            <div className="lg:col-span-3">
+            {/* ── Main grid ─────────────────────────────────────────────────── */}
+            <div className="lg:col-span-2">
               <ScrollFade>
                 <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: false }}
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 sm:mb-12">
@@ -537,13 +551,15 @@ export default function EventsPage() {
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     {selectedCategory !== "All Events" && (
                       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                        <Button variant="outline" className="flex items-center gap-2 border-2 w-full sm:w-auto" onClick={() => handleCategoryChange("All Events")}>
+                        <Button variant="outline" className="flex items-center gap-2 border-2 w-full sm:w-auto"
+                          onClick={() => handleCategoryChange("All Events")}>
                           <X className="h-3 w-3 sm:h-4 sm:w-4" /> Clear Filter
                         </Button>
                       </motion.div>
                     )}
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button variant="outline" className="flex items-center gap-2 border-2 w-full sm:w-auto" onClick={() => setShowFilter(!showFilter)}>
+                      <Button variant="outline" className="flex items-center gap-2 border-2 w-full sm:w-auto"
+                        onClick={() => setShowFilter(!showFilter)}>
                         <Filter className="h-3 w-3 sm:h-4 sm:w-4" /> Filter
                       </Button>
                     </motion.div>
@@ -551,9 +567,16 @@ export default function EventsPage() {
                 </motion.div>
               </ScrollFade>
 
-              <AnimatePresence>
+              {/* ✅ FIX #6: mode="wait" prevents animation memory leak on unmount */}
+              <AnimatePresence mode="wait">
                 {showFilter && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }} className="mb-6 overflow-hidden">
+                  <motion.div
+                    key="filter-panel"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-6 overflow-hidden">
                     <div className="p-4 bg-card rounded-xl shadow-lg border border-border">
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {eventCategories.slice(1).map((cat) => (
@@ -578,37 +601,46 @@ export default function EventsPage() {
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                     There are no upcoming events{selectedCategory !== "All Events" ? ` in the "${selectedCategory}" category` : ""} yet.
                   </p>
-                  <Button onClick={() => handleCategoryChange("All Events")} className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
+                  <Button onClick={() => handleCategoryChange("All Events")}
+                    className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
                     View All Events
                   </Button>
                 </motion.div>
               ) : (
                 <>
-                  <motion.div variants={staggerContainer} initial="hidden" whileInView="visible" viewport={{ once: false, margin: "-50px" }}
+                  <motion.div variants={staggerContainer} initial="hidden" whileInView="visible"
+                    viewport={{ once: false, margin: "-50px" }}
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {gridEvents.map((event) => (
-                      <motion.div key={event.id} variants={fadeInUp} whileHover={{ y: -5, scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}
+                      <motion.div key={event.id} variants={fadeInUp}
+                        whileHover={{ y: -5, scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}
                         className="group bg-card rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 border border-border">
-                        <div onClick={() => handleCardClick(event.slug)} className="relative h-40 sm:h-44 overflow-hidden bg-gradient-to-br from-muted to-secondary cursor-pointer">
-                          {!imagesLoaded[event.id] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+
+                        <div onClick={() => handleCardClick(event.slug)}
+                          className="relative h-40 sm:h-44 overflow-hidden bg-gradient-to-br from-muted to-secondary cursor-pointer">
+                          {!imagesLoaded.has(event.id) && (
+                            <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+                          )}
                           <motion.div whileHover={{ scale: 1.1 }} transition={{ duration: 0.3 }} className="w-full h-full">
                             <Image
-                              src={event.image}
+                              src={imageError.has(event.id) ? "/placeholder-event.jpg" : event.image}
                               alt={event.title}
                               fill
                               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                              className={`object-cover transition-opacity duration-300 ${imagesLoaded[event.id] ? "opacity-100" : "opacity-0"}`}
+                              className={`object-cover transition-opacity duration-300 ${imagesLoaded.has(event.id) ? "opacity-100" : "opacity-0"}`}
                               onLoad={() => handleImageLoad(event.id)}
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              onError={() => handleImageError(event.id)}
                               loading="lazy"
                             />
                           </motion.div>
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.2 }}
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                            transition={{ type: "spring", delay: 0.2 }}
                             className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 text-center shadow-lg">
                             <div className="text-xs text-muted-foreground font-medium uppercase">{event.month}</div>
                             <div className="text-xl sm:text-2xl font-bold text-foreground">{event.day}</div>
                           </motion.div>
-                          <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}
+                          <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
                             className="absolute top-3 right-3 sm:top-4 sm:right-4">
                             <span className="px-2 py-1 rounded-full bg-white/90 backdrop-blur-sm text-xs font-medium text-foreground">
                               {event.format.split(" ")[0]}
@@ -618,23 +650,28 @@ export default function EventsPage() {
 
                         <div className="p-4 sm:p-6">
                           <div onClick={() => handleCardClick(event.slug)} className="cursor-pointer">
-                            <motion.span variants={scaleIn} className="inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 sm:mb-3 uppercase">
+                            <motion.span variants={scaleIn}
+                              className="inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 sm:mb-3 uppercase">
                               {event.category}
                             </motion.span>
-                            <AnimatedText as="h3" delay={0.1} className="text-sm sm:text-base lg:text-lg font-display font-bold text-foreground mb-2 sm:mb-3 line-clamp-2 group-hover:text-primary transition-colors">
+                            <AnimatedText as="h3" delay={0.1}
+                              className="text-sm sm:text-base lg:text-lg font-display font-bold text-foreground mb-2 sm:mb-3 line-clamp-2 group-hover:text-primary transition-colors">
                               {event.title}
                             </AnimatedText>
                           </div>
 
-                          <motion.div variants={staggerContainer} className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
+                          <motion.div variants={staggerContainer}
+                            className="flex items-center justify-between pt-3 sm:pt-4 border-t border-border">
                             <div className="flex gap-2">
                               <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button onClick={(e) => handleContactClick(event, e)} size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                                <Button onClick={(e) => handleContactClick(event, e)} size="sm" variant="outline"
+                                  className="border-primary text-primary hover:bg-primary hover:text-white">
                                   <Mail className="mr-1 h-3 w-3" /> Contact
                                 </Button>
                               </motion.div>
                               <motion.div variants={scaleIn} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button onClick={() => handleCardClick(event.slug)} size="sm" className="bg-primary hover:bg-primary/90 text-white">
+                                <Button onClick={() => handleCardClick(event.slug)} size="sm"
+                                  className="bg-primary hover:bg-primary/90 text-white">
                                   View Details
                                 </Button>
                               </motion.div>
@@ -645,104 +682,114 @@ export default function EventsPage() {
                     ))}
                   </motion.div>
 
-                  {/* Pagination */}
+                  {/* ── Pagination ─────────────────────────────────────────── */}
+                  {/* ✅ FIX #8: responsive dual-layout pagination (same as News/Blogs) */}
                   {totalPages > 1 && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                      className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 sm:mt-12 pt-8 border-t border-border">
-                      <div className="text-sm text-muted-foreground">
-                        Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} events
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                          <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="gap-1">
-                            <ArrowRight className="h-3 w-3 rotate-180" /> Previous
-                          </Button>
-                        </motion.div>
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
 
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum: number;
-                            if (totalPages <= 5) pageNum = i + 1;
-                            else if (currentPage <= 3) pageNum = i + 1;
-                            else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-                            else pageNum = currentPage - 2 + i;
-                            return (
-                              <motion.div key={pageNum} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                                <Button variant={currentPage === pageNum ? "default" : "outline"} size="sm" className="w-10 h-10 p-0" onClick={() => handlePageChange(pageNum)}>
-                                  {pageNum}
+                      {/* Mobile (< sm): compact */}
+                      <div className="flex sm:hidden flex-col items-center gap-3">
+                        <p className="text-xs text-muted-foreground">
+                          Page {currentPage} of {totalPages}
+                        </p>
+                        <div className="flex items-center gap-1.5 w-full justify-center flex-wrap">
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button variant="outline" size="sm"
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="h-9 px-3 gap-1 text-xs">
+                              <ArrowRight className="h-3 w-3 rotate-180" /> Prev
+                            </Button>
+                          </motion.div>
+
+                          {buildPageNumbers(currentPage, totalPages, true).map((p, i) =>
+                            p === "…" ? (
+                              <span key={`me-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                            ) : (
+                              <motion.div key={`m-${p}`} whileTap={{ scale: 0.9 }}>
+                                <Button
+                                  variant={currentPage === p ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-9 w-9 p-0 text-xs"
+                                  onClick={() => handlePageChange(p as number)}>
+                                  {p}
                                 </Button>
                               </motion.div>
-                            );
-                          })}
-                          {totalPages > 5 && currentPage < totalPages - 2 && (
-                            <>
-                              <span className="px-2">...</span>
-                              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                                <Button variant="outline" size="sm" className="w-10 h-10 p-0" onClick={() => handlePageChange(totalPages)}>
-                                  {totalPages}
-                                </Button>
-                              </motion.div>
-                            </>
+                            )
                           )}
-                        </div>
 
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                          <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="gap-1">
-                            Next <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        </motion.div>
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button variant="outline" size="sm"
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                              className="h-9 px-3 gap-1 text-xs">
+                              Next <ArrowRight className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
+                        </div>
                       </div>
+
+                      {/* Desktop (≥ sm): full layout */}
+                      <div className="hidden sm:flex flex-row items-center justify-between gap-4">
+                        <div className="text-sm text-muted-foreground shrink-0">
+                          Showing {startIndex}–{endIndex} of {totalItems} events
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button variant="outline" size="sm"
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="gap-1">
+                              <ArrowRight className="h-3 w-3 rotate-180" /> Previous
+                            </Button>
+                          </motion.div>
+
+                          <div className="flex items-center gap-1">
+                            {buildPageNumbers(currentPage, totalPages, false).map((p, i) =>
+                              p === "…" ? (
+                                <span key={`de-${i}`} className="px-2 text-muted-foreground">…</span>
+                              ) : (
+                                <motion.div key={`d-${p}`} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                                  <Button
+                                    variant={currentPage === p ? "default" : "outline"}
+                                    size="sm"
+                                    className="w-10 h-10 p-0"
+                                    onClick={() => handlePageChange(p as number)}>
+                                    {p}
+                                  </Button>
+                                </motion.div>
+                              )
+                            )}
+                          </div>
+
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button variant="outline" size="sm"
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                              className="gap-1">
+                              Next <ArrowRight className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
+                        </div>
+                      </div>
+
                     </motion.div>
                   )}
                 </>
               )}
             </div>
 
-            {/* ── Sidebar ── */}
+            {/* ── Sidebar ───────────────────────────────────────────────────── */}
             <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-              <ScrollFade>
-                <motion.div variants={scaleIn} className="bg-card rounded-xl p-5 shadow-lg border border-border">
-                  <motion.div variants={fadeInUp} className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-accent" /> Upcoming Soon
-                    </h3>
-                  </motion.div>
-                  <motion.div variants={staggerContainer} className="space-y-4">
-                    {upcomingEvents.length > 0 ? upcomingEvents.map((event, index) => (
-                      <motion.div key={event.id} variants={fadeInLeft} whileHover={{ x: 5 }} onClick={() => handleCardClick(event.slug)}
-                        className="block group cursor-pointer pb-4 border-b border-border last:border-0 last:pb-0 hover:border-primary/30 transition-colors">
-                        <div className="flex items-center gap-2 mb-1">
-                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: index * 0.1 }}
-                            className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                            {index + 1}
-                          </motion.span>
-                          <span className="inline-block px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase">
-                            {event.category.split(" ")[0]}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5 leading-snug text-sm line-clamp-2">
-                          {event.title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{event.month} {event.day}</span>
-                        </div>
-                      </motion.div>
-                    )) : (
-                      <div className="text-center py-2">
-                        <p className="text-muted-foreground text-sm">No upcoming events</p>
-                      </div>
-                    )}
-                  </motion.div>
-                </motion.div>
-              </ScrollFade>
-
               <ScrollFade>
                 <motion.div variants={scaleIn} className="bg-gradient-to-br from-secondary/50 to-secondary rounded-xl p-5 border border-border">
                   <h3 className="text-base font-display font-bold text-foreground mb-3">Event Categories</h3>
                   <motion.div variants={staggerContainer} className="space-y-2">
                     {eventCategories.slice(1).map((cat) => (
-                      <motion.button key={cat} variants={fadeInRight} whileHover={{ x: 5 }} onClick={() => handleCategoryChange(cat)}
+                      <motion.button key={cat} variants={fadeInRight} whileHover={{ x: 5 }}
+                        onClick={() => handleCategoryChange(cat)}
                         className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm ${selectedCategory === cat ? "bg-primary/10 text-primary font-medium" : "hover:bg-white/20 text-muted-foreground"}`}>
                         {cat}
                       </motion.button>
@@ -763,7 +810,8 @@ export default function EventsPage() {
                       </motion.button>
                     </div>
                     <p className="text-sm text-muted-foreground mb-3">Viewing events in:</p>
-                    <motion.div variants={scaleIn} className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold text-center shadow-sm">
+                    <motion.div variants={scaleIn}
+                      className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold text-center shadow-sm">
                       {selectedCategory}
                     </motion.div>
                     <p className="text-xs text-muted-foreground mt-3 text-center">
@@ -778,8 +826,8 @@ export default function EventsPage() {
                   <h3 className="text-base font-display font-bold text-foreground mb-3">Event Tips</h3>
                   <motion.ul variants={staggerContainer} className="space-y-2 text-xs text-muted-foreground">
                     {[
-                      { icon: Clock, text: "Register early for best rates" },
-                      { icon: Users, text: "Network with fellow attendees" },
+                      { icon: Clock,    text: "Register early for best rates" },
+                      { icon: Users,    text: "Network with fellow attendees" },
                       { icon: Calendar, text: "Add events to your calendar" },
                     ].map(({ icon: Icon, text }) => (
                       <motion.li key={text} variants={fadeInUp} className="flex items-start gap-2">

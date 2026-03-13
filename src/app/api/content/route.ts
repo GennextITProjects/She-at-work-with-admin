@@ -7,7 +7,7 @@ import {
   TagsTable,
   ContentTagsTable,
 } from "@/db/schema";
-import { and, eq, ilike, gte, lte, desc, count, inArray, sql } from "drizzle-orm";
+import { and, eq, ilike, or, gte, lte, desc, count, inArray, sql } from "drizzle-orm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,14 +16,6 @@ type ContentType =
   | "PRESS" | "SUCCESS_STORY" | "RESOURCE";
 
 // ─── In-memory meta cache ─────────────────────────────────────────────────────
-//
-// WHY: Categories (57 rows) and readingTime buckets (3 values computed from
-// ~1900 rows) are static. Without caching, EVERY request re-fetches both —
-// adding a full sequential DB round-trip (~400–800ms on Neon) to every page load.
-//
-// HOW: Module-level Map survives across warm Vercel invocations. After the
-// first cold-start hit, all warm requests return meta in <1ms with zero DB cost.
-// TTL of 10 min means new categories appear within 10 min of being created.
 
 type MetaEntry = {
   categories: { id: string; name: string; slug: string }[];
@@ -45,9 +37,6 @@ function getMetaFromCache(key: string): MetaEntry | null {
 }
 
 async function fetchMeta(contentType: ContentType): Promise<MetaEntry> {
-  // ✅ FIX #1: selectDistinct instead of fetching all 1900 rows
-  // Before: pulled every readingTime value → JS Set dedup → 3 buckets
-  // After:  DB returns only distinct values → far less data transferred
   const [categories, distinctReadingTimes] = await Promise.all([
     db
       .select({ id: CategoriesTable.id, name: CategoriesTable.name, slug: CategoriesTable.slug })
@@ -67,7 +56,6 @@ async function fetchMeta(contentType: ContentType): Promise<MetaEntry> {
       ),
   ]);
 
-  // Map distinct integer values → the 3 display buckets
   const readingTimes = Array.from(
     new Set(
       distinctReadingTimes
@@ -83,8 +71,9 @@ async function fetchMeta(contentType: ContentType): Promise<MetaEntry> {
 
 // ─── Cache headers ────────────────────────────────────────────────────────────
 
-const CONTENT_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
-const META_HEADERS    = { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600" };
+const CONTENT_HEADERS     = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
+const META_HEADERS        = { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600" };
+const SUGGESTIONS_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" };
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -93,8 +82,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const contentType = (searchParams.get("contentType") ?? "BLOG") as ContentType;
 
-    // ── ?meta=1 — return only categories + readingTimes ───────────────────────
-    // Served from in-memory cache after first hit → zero DB cost on warm instances
+    // ── ?meta=1 ───────────────────────────────────────────────────────────────
     if (searchParams.get("meta") === "1") {
       const meta = getMetaFromCache(contentType) ?? await fetchMeta(contentType);
       return NextResponse.json(
@@ -103,7 +91,51 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // ── Parse params ──────────────────────────────────────────────────────────
+    // ── ?suggestions=1 ───────────────────────────────────────────────────────
+    //
+    // Kept for backward compatibility and for cases where you need deep search
+    // across ALL ~1900 rows (not just the current page).
+    //
+    // The main paginated endpoint now also returns `suggestionCandidates` when
+    // a `search` param is present, so the client can skip this extra request
+    // for most use cases.
+    //
+    // Usage: GET /api/content?contentType=BLOG&suggestions=1&q=entrepreneur
+    if (searchParams.get("suggestions") === "1") {
+      const q = searchParams.get("q")?.trim() ?? "";
+
+      if (q.length < 2) {
+        return NextResponse.json({ results: [] }, { headers: SUGGESTIONS_HEADERS });
+      }
+
+      const rows = await db
+        .select({
+          id:           ContentTable.id,
+          title:        ContentTable.title,
+          slug:         ContentTable.slug,
+          publishedAt:  ContentTable.publishedAt,
+          authorName:   ContentTable.authorName,
+          categoryName: CategoriesTable.name,
+        })
+        .from(ContentTable)
+        .leftJoin(CategoriesTable, eq(ContentTable.categoryId, CategoriesTable.id))
+        .where(
+          and(
+            eq(ContentTable.contentType, contentType),
+            eq(ContentTable.status, "PUBLISHED"),
+            or(
+              ilike(ContentTable.title,      `%${q}%`),
+              ilike(ContentTable.authorName, `%${q}%`)
+            )
+          )
+        )
+        .orderBy(desc(ContentTable.publishedAt))
+        .limit(50); // fetch 50 candidates, ranked to top 8 client-side
+
+      return NextResponse.json({ results: rows }, { headers: SUGGESTIONS_HEADERS });
+    }
+
+    // ── Paginated content list (default) ─────────────────────────────────────
     const page         = Math.max(1, parseInt(searchParams.get("page")     ?? "1"));
     const limit        = Math.min(100, parseInt(searchParams.get("limit")  ?? "12"));
     const offset       = (page - 1) * limit;
@@ -113,9 +145,6 @@ export async function GET(req: NextRequest) {
     const dateFrom     = searchParams.get("dateFrom")         ?? "";
     const dateTo       = searchParams.get("dateTo")           ?? "";
 
-    // ── WHERE conditions ──────────────────────────────────────────────────────
-    // content_type_status_published_idx covers (contentType, status, publishedAt)
-    // so the base filter + ORDER BY publishedAt DESC uses one index scan
     const conditions = [
       eq(ContentTable.contentType, contentType),
       eq(ContentTable.status, "PUBLISHED"),
@@ -129,9 +158,6 @@ export async function GET(req: NextRequest) {
       conditions.push(lte(ContentTable.publishedAt, to));
     }
 
-    // ✅ FIX #2: subqueries instead of separate round-trips for category/tag
-    // Before: separate await db.select for category id → then re-query content
-    // After:  single SQL with inline correlated subquery — one round-trip
     if (categorySlug) {
       conditions.push(
         sql`${ContentTable.categoryId} = (
@@ -155,9 +181,6 @@ export async function GET(req: NextRequest) {
 
     const where = and(...conditions);
 
-    // ── FIX #3: content rows + count run in PARALLEL ──────────────────────────
-    // Before: these were parallel ✅ — keeping that
-    // After:  also run meta fetch in parallel with content (see below)
     const [rows, [{ total }]] = await Promise.all([
       db
         .select({
@@ -184,18 +207,8 @@ export async function GET(req: NextRequest) {
       db.select({ total: count() }).from(ContentTable).where(where),
     ]);
 
-    // ── FIX #4: tags via inArray instead of sql.join string building ──────────
-    // Before: sql`... IN (${sql.join(ids.map(id => sql`${id}`), sql`,`)})`
-    //   → builds a raw string like IN ($1,$2,...$12), bypasses query planner
-    // After:  inArray() compiles to = ANY($1::uuid[]) which uses the index
-    //   content_tags_content_id_idx efficiently via a bitmap index scan
     const tagMap: Record<string, { id: string; name: string; slug: string }[]> = {};
 
-    // ── FIX #5: tags + meta fetched IN PARALLEL with each other ──────────────
-    // Before: tags ran sequentially AFTER content, then meta ran after tags
-    //   → 3 sequential round-trips = ~1200–2400ms just in Neon latency
-    // After:  tags and meta (cache miss) run at the same time
-    //   → 2 parallel round-trips, warm meta = 1 round-trip total
     const tagFetch = rows.length > 0
       ? db
           .select({
@@ -209,8 +222,6 @@ export async function GET(req: NextRequest) {
           .where(inArray(ContentTagsTable.contentId, rows.map((r) => r.id)))
       : Promise.resolve([]);
 
-    // getMetaFromCache() is synchronous — if cache is warm this is instant,
-    // if cold it fires a DB query in parallel with tagFetch
     const metaFetch = getMetaFromCache(contentType)
       ? Promise.resolve(getMetaFromCache(contentType)!)
       : fetchMeta(contentType);
@@ -224,16 +235,34 @@ export async function GET(req: NextRequest) {
 
     const totalItems = Number(total);
 
+    // ── Build suggestion candidates from current page rows ────────────────────
+    //
+    // When a search query is present, include the matched rows as slim suggestion
+    // candidates so the client can populate the dropdown without a second request.
+    //
+    // NOTE: These are limited to the current page (up to `limit` rows). If you
+    // need suggestions from ALL rows across all pages, use ?suggestions=1 instead.
+    const suggestionCandidates = search
+      ? rows.map((r) => ({
+          id:          r.id,
+          title:       r.title,
+          slug:        r.slug,
+          publishedAt: r.publishedAt,
+          authorName:  r.authorName,
+          categoryName: r.categoryName,
+        }))
+      : [];
+
     return NextResponse.json(
       {
-        items:        rows.map((r) => ({ ...r, tags: tagMap[r.id] ?? [] })),
+        items:                rows.map((r) => ({ ...r, tags: tagMap[r.id] ?? [] })),
         totalItems,
-        totalPages:   Math.ceil(totalItems / limit),
+        totalPages:           Math.ceil(totalItems / limit),
         page,
         limit,
-        // ✅ Always bundled — frontend needs only ONE fetch on mount
-        categories:   meta.categories,
-        readingTimes: meta.readingTimes,
+        categories:           meta.categories,
+        readingTimes:         meta.readingTimes,
+        suggestionCandidates,              // ← new: slim candidates for dropdown
       },
       { headers: CONTENT_HEADERS }
     );

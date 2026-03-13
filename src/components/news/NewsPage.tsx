@@ -14,15 +14,14 @@ import Cta from "../common/Cta";
 import { getCategoryIcon, MultiSelectDropdown } from "../common/MultiSelectDropdown";
 import { AnimatedText, ScrollFade, StaggerChildren } from "../common/ScrollFade";
 import { ScrollReveal } from "../common/ScrollReveal";
-
 import { SearchSuggestions } from "./SearchSuggestions";
 import { Chip } from "../blogs/Chip";
 import { SkeletonCard } from "../blogs/SkeletonCard";
 
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// ─── Constants ──────────────────────────────────────────────────────────────
 
 const ITEMS_PER_PAGE = 12;
+const DEBOUNCE_MS    = 500;
 
 const predefinedDateRanges = [
   { label: "Last 24h",   value: "24h" },
@@ -32,55 +31,56 @@ const predefinedDateRanges = [
   { label: "Custom",     value: "custom" },
 ];
 
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-};
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-type Tag = {
-  id: string;
-  name: string;
-  slug: string;
-};
+type Category = { id: string; name: string; slug: string };
+type Tag      = { id: string; name: string; slug: string };
 
 type NewsItem = {
-  id: string;
-  title: string;
-  slug: string;
-  summary: string | null;
+  id:            string;
+  title:         string;
+  slug:          string;
+  summary:       string | null;
   featuredImage: string | null;
-  externalUrl: string | null;
-  readingTime: number | null;
-  publishedAt: string | null;
-  authorName: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  categorySlug: string | null;
-  tags: Tag[];
+  externalUrl:   string | null;
+  readingTime:   number | null;
+  publishedAt:   string | null;
+  authorName:    string | null;
+  categoryId:    string | null;
+  categoryName:  string | null;
+  categorySlug:  string | null;
+  tags:          Tag[];
 };
 
 type ApiResponse = {
-  items: NewsItem[];
-  totalItems: number;
-  totalPages: number;
-  page: number;
-  limit: number;
-  // Bundled metadata
-  categories: Category[];
+  items:        NewsItem[];
+  totalItems:   number;
+  totalPages:   number;
+  page:         number;
+  limit:        number;
+  categories:   Category[];
   readingTimes: string[];
+  // New: suggestion candidates derived from current page
+  suggestionCandidates?: {
+    id: string;
+    title: string;
+    slug: string;
+    publishedAt: string | null;
+    authorName: string | null;
+    categoryName: string | null;
+  }[];
 };
 
 type SearchSuggestion = {
-  id: string; 
-  title: string; 
-  category: string;
-  date: string; 
-  slug: string; 
+  id:        string;
+  title:     string;
+  category:  string;
+  date:      string;
+  slug:      string;
   relevance: number;
 };
 
-// ─── Utilities ─────────────────────────────────────────────────────────────────
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -89,80 +89,134 @@ function formatDate(iso: string | null): string {
   });
 }
 
-function buildPageNumbers(current: number, total: number): (number | "…")[] {
+function buildPageNumbers(current: number, total: number, compact = false): (number | "…")[] {
+  if (compact) {
+    if (total <= 3) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current === 1)     return [1, 2, "…", total];
+    if (current === total) return [1, "…", total - 1, total];
+    return [1, "…", current, "…", total];
+  }
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, "…", total];
+  if (current <= 4)         return [1, 2, 3, 4, 5, "…", total];
   if (current >= total - 3) return [1, "…", total - 4, total - 3, total - 2, total - 1, total];
   return [1, "…", current - 1, current, current + 1, "…", total];
 }
 
-// ✅ Single URL builder — contentType always NEWS, meta bundled in main response
 function buildUrl(opts: {
-  page?: number; 
-  limit?: number; 
-  search?: string;
-  categorySlug?: string; 
-  tagSlug?: string;
-  dateFrom?: string; 
-  dateTo?: string;
+  page?:         number;
+  limit?:        number;
+  search?:       string;
+  categorySlug?: string;
+  tagSlug?:      string;
+  dateFrom?:     string;
+  dateTo?:       string;
+  readingTime?:  string;
 }): string {
   const p = new URLSearchParams({ contentType: "NEWS" });
-  if (opts.page)         p.set("page",     String(opts.page));
-  if (opts.limit)        p.set("limit",    String(opts.limit));
-  if (opts.search)       p.set("search",   opts.search);
-  if (opts.categorySlug) p.set("category", opts.categorySlug);
-  if (opts.tagSlug)      p.set("tag",      opts.tagSlug);
-  if (opts.dateFrom)     p.set("dateFrom", opts.dateFrom);
-  if (opts.dateTo)       p.set("dateTo",   opts.dateTo);
+  if (opts.page)         p.set("page",        String(opts.page));
+  if (opts.limit)        p.set("limit",       String(opts.limit));
+  if (opts.search)       p.set("search",      opts.search);
+  if (opts.categorySlug) p.set("category",    opts.categorySlug);
+  if (opts.tagSlug)      p.set("tag",         opts.tagSlug);
+  if (opts.dateFrom)     p.set("dateFrom",    opts.dateFrom);
+  if (opts.dateTo)       p.set("dateTo",      opts.dateTo);
+  if (opts.readingTime)  p.set("readingTime", opts.readingTime);
   return `/api/content?${p}`;
 }
 
-// ─── Main Component ─────────────────────────────────────────────────────────────
+function rankSuggestions(
+  results: ApiResponse["suggestionCandidates"],
+  query: string
+): SearchSuggestion[] {
+  if (!results?.length) return [];
+  
+  const q = query.toLowerCase();
+  return results
+    .map((r) => {
+      let relevance = 0;
+      const t = r.title.toLowerCase();
+      if (t.startsWith(q))                           relevance += 15;
+      if (t.includes(q))                             relevance += 10;
+      if (r.categoryName?.toLowerCase().includes(q)) relevance +=  8;
+      if (r.authorName?.toLowerCase().includes(q))   relevance +=  5;
+      return {
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        category: r.categoryName ?? "News",
+        date: formatDate(r.publishedAt),
+        relevance,
+      };
+    })
+    .filter((s) => s.relevance > 0)
+    .sort((a, b) => b.relevance - a.relevance)
+    .slice(0, 8);
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function NewsPage() {
-  // ── Filter state ────────────────────────────────────────────────────────────
+
+  // ── Filter state ─────────────────────────────────────────────────────────
   const [selectedCategorySlug, setSelectedCategorySlug] = useState("");
-  const [selectedTagSlug, setSelectedTagSlug]           = useState("");
+  const [tagInput, setTagInput]                         = useState("");
   const [selectedReadingTimes, setSelectedReadingTimes] = useState<string[]>([]);
   const [currentPage, setCurrentPage]                   = useState(1);
   const [searchQuery, setSearchQuery]                   = useState("");
-  const [debouncedSearch, setDebouncedSearch]           = useState("");
   const [dateRange, setDateRange]                       = useState({ from: "", to: "" });
   const [selectedDateRange, setSelectedDateRange]       = useState("");
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
-  // ── Data state ──────────────────────────────────────────────────────────────
-  const [allItems, setAllItems]               = useState<NewsItem[]>([]);
+  const debouncedSearch  = useDebounce(searchQuery, DEBOUNCE_MS);
+  const debouncedTagSlug = useDebounce(tagInput,    DEBOUNCE_MS);
+
+  // ── Data state ────────────────────────────────────────────────────────────
   const [newsItems, setNewsItems]             = useState<NewsItem[]>([]);
   const [featuredNews, setFeaturedNews]       = useState<NewsItem | null>(null);
   const [latestHeadlines, setLatestHeadlines] = useState<NewsItem[]>([]);
   const [totalPages, setTotalPages]           = useState(1);
   const [totalItems, setTotalItems]           = useState(0);
 
-  // ── Meta state ──────────────────────────────────────────────────────────────
-  const [categories, setCategories]           = useState<Category[]>([]);
+  // ── Meta state ────────────────────────────────────────────────────────────
+  const [categories, setCategories]                 = useState<Category[]>([]);
   const [readingTimeBuckets, setReadingTimeBuckets] = useState<string[]>([]);
 
-  // ── Loading ─────────────────────────────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────────────────────
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isFilterLoading, setIsFilterLoading]   = useState(false);
 
-  // ── Search suggestions ──────────────────────────────────────────────────────
+  // ── Search suggestions ────────────────────────────────────────────────────
   const [showSuggestions, setShowSuggestions]     = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
 
-  // ── UI ──────────────────────────────────────────────────────────────────────
+  // ── UI ────────────────────────────────────────────────────────────────────
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // ── Refs ────────────────────────────────────────────────────────────────────
-  const searchRef         = useRef<HTMLDivElement>(null);
-  const filterRef         = useRef<HTMLDivElement>(null);
-  const filterAbortRef    = useRef<AbortController | null>(null);
-  const searchAbortRef    = useRef<AbortController | null>(null);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isFirstRender     = useRef(true);
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const searchRef        = useRef<HTMLDivElement>(null);
+  const filterRef        = useRef<HTMLDivElement>(null);
+  const filterAbortRef   = useRef<AbortController | null>(null);
+  const isFirstRender    = useRef(true);
+  const prevFiltersRef   = useRef({
+    page: 1,
+    search: "",
+    category: "",
+    tag: "",
+    readingTimes: "",
+    dateFrom: "",
+    dateTo: ""
+  });
 
-  // ── Animation variants ──────────────────────────────────────────────────────
+  // ── Animation variants ────────────────────────────────────────────────────
   const bannerVariants: Variants = {
     hidden:  { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
@@ -172,33 +226,27 @@ export default function NewsPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] } },
   };
 
-  // ── Debounce search ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
-  }, [searchQuery]);
+  // ── Apply response with suggestions ───────────────────────────────────────
+  const applyResponse = useCallback((data: ApiResponse, query?: string) => {
+    setNewsItems(data.items);
+    setTotalPages(data.totalPages);
+    setTotalItems(data.totalItems);
+    setCategories(data.categories ?? []);
+    setReadingTimeBuckets(data.readingTimes ?? []);
 
-  // ── Client-side reading time filter ────────────────────────────────────────
-  useEffect(() => {
-    // Filter by reading time buckets (client-side since it's a UI grouping)
-    if (selectedReadingTimes.length === 0) {
-      setNewsItems(allItems);
+    // Derive suggestions from the grid response candidates
+    const q = query ?? "";
+    if (data.suggestionCandidates?.length && q.length >= 2) {
+      const ranked = rankSuggestions(data.suggestionCandidates, q);
+      setSearchSuggestions(ranked);
+      setShowSuggestions(ranked.length > 0);
     } else {
-      const filtered = allItems.filter((item) => {
-        if (!item.readingTime) return false;
-        return selectedReadingTimes.some((bucket) => {
-          if (bucket === "Under 5 min") return item.readingTime! <= 5;
-          if (bucket === "5–10 min") return item.readingTime! > 5 && item.readingTime! <= 10;
-          if (bucket === "10+ min") return item.readingTime! > 10;
-          return false;
-        });
-      });
-      setNewsItems(filtered);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
     }
-  }, [allItems, selectedReadingTimes]);
+  }, []);
 
-  // ── On mount: ONE fetch returns news + meta ─────────────────────────────────
+  // ── On mount: single fetch returns news + meta ────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -206,124 +254,156 @@ export default function NewsPage() {
         if (!res.ok) return;
         const data: ApiResponse = await res.json();
 
-        setAllItems(data.items);
-        setNewsItems(data.items);
+        applyResponse(data);
         setFeaturedNews(data.items[0] ?? null);
         setLatestHeadlines(data.items.slice(0, 4));
-        setTotalPages(data.totalPages);
-        setTotalItems(data.totalItems);
-
-        // Meta comes bundled
-        setCategories(data.categories ?? []);
-        setReadingTimeBuckets(data.readingTimes ?? []);
       } catch (err) {
         console.error("Init fetch error:", err);
       } finally {
         setIsInitialLoading(false);
       }
     })();
-  }, []);
+  }, [applyResponse]);
 
-  // ── Fetch on filter/page change ─────────────────────────────────────────────
+  // ── Check if filters actually changed ─────────────────────────────────────
+  const haveFiltersChanged = useCallback(() => {
+    const currentFilters = {
+      page: currentPage,
+      search: debouncedSearch,
+      category: selectedCategorySlug,
+      tag: debouncedTagSlug,
+      readingTimes: selectedReadingTimes.join(","),
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to
+    };
+
+    const prev = prevFiltersRef.current;
+    
+    const changed = 
+      prev.page !== currentFilters.page ||
+      prev.search !== currentFilters.search ||
+      prev.category !== currentFilters.category ||
+      prev.tag !== currentFilters.tag ||
+      prev.readingTimes !== currentFilters.readingTimes ||
+      prev.dateFrom !== currentFilters.dateFrom ||
+      prev.dateTo !== currentFilters.dateTo;
+
+    if (changed) {
+      prevFiltersRef.current = currentFilters;
+    }
+
+    return changed;
+  }, [currentPage, debouncedSearch, selectedCategorySlug, debouncedTagSlug, selectedReadingTimes, dateRange.from, dateRange.to]);
+
+  // ── Fetch on filter / page change ─────────────────────────────────────────
   const fetchFilteredNews = useCallback(async () => {
-    if (filterAbortRef.current) filterAbortRef.current.abort();
+    // 🚨 Don't fetch if search is too short (1 character)
+    if (debouncedSearch.length > 0 && debouncedSearch.length < 2) {
+      return;
+    }
+
+    // Check if filters actually changed to prevent duplicate requests
+    if (!haveFiltersChanged()) {
+      return;
+    }
+
+    if (filterAbortRef.current) {
+      filterAbortRef.current.abort();
+    }
+    
     filterAbortRef.current = new AbortController();
     setIsFilterLoading(true);
 
     try {
+      const readingTimeParam = selectedReadingTimes.length === 1
+        ? selectedReadingTimes[0]
+        : selectedReadingTimes.length > 1
+          ? selectedReadingTimes.join(",")
+          : undefined;
+
       const res = await fetch(
         buildUrl({
           page:         currentPage,
           limit:        ITEMS_PER_PAGE,
-          search:       debouncedSearch || undefined,
+          search:       debouncedSearch.length >= 2 ? debouncedSearch : undefined,
           categorySlug: selectedCategorySlug || undefined,
-          tagSlug:      selectedTagSlug || undefined,
+          tagSlug:      debouncedTagSlug || undefined,
           dateFrom:     dateRange.from || undefined,
           dateTo:       dateRange.to || undefined,
+          readingTime:  readingTimeParam,
         }),
         { signal: filterAbortRef.current.signal }
       );
+
       if (!res.ok) throw new Error("Failed");
       const data: ApiResponse = await res.json();
-      
-      setAllItems(data.items);
-      // Don't set newsItems here - the reading time filter effect will handle it
-      setTotalPages(data.totalPages);
-      setTotalItems(data.totalItems);
-      
-      // Update meta if server returned fresher data
-      if (data.categories?.length) setCategories(data.categories);
-      if (data.readingTimes?.length) setReadingTimeBuckets(data.readingTimes);
+
+      applyResponse(data, debouncedSearch.length >= 2 ? debouncedSearch : undefined);
     } catch (err: any) {
       if (err.name === "AbortError") return;
       console.error("Filter fetch error:", err);
-      setAllItems([]);
+      setNewsItems([]);
     } finally {
       setIsFilterLoading(false);
     }
-  }, [currentPage, debouncedSearch, selectedCategorySlug, selectedTagSlug, dateRange]);
+  }, [
+    currentPage,
+    debouncedSearch,
+    selectedCategorySlug,
+    debouncedTagSlug,
+    selectedReadingTimes,
+    dateRange,
+    applyResponse,
+    haveFiltersChanged
+  ]);
 
+  // ── Trigger fetch when filters change ────────────────────────────────────
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    fetchFilteredNews();
-  }, [fetchFilteredNews]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
 
-  // ── Search suggestions ──────────────────────────────────────────────────────
+    // Don't fetch if no filters are active (except page 1)
+    const hasActiveFilters = 
+      selectedCategorySlug || 
+      debouncedTagSlug || 
+      selectedReadingTimes.length > 0 ||
+      dateRange.from || 
+      dateRange.to || 
+      debouncedSearch.length >= 2;
+
+    if (!hasActiveFilters && currentPage === 1) {
+      return;
+    }
+
+    fetchFilteredNews();
+    
+    return () => {
+      if (filterAbortRef.current) {
+        filterAbortRef.current.abort();
+      }
+    };
+  }, [
+    currentPage,
+    debouncedSearch,
+    selectedCategorySlug,
+    debouncedTagSlug,
+    selectedReadingTimes,
+    dateRange.from,
+    dateRange.to,
+    fetchFilteredNews
+  ]);
+
+  // ── Clear suggestions when search is cleared ──────────────────────────────
   useEffect(() => {
     if (debouncedSearch.length < 2) {
       setSearchSuggestions([]);
       setShowSuggestions(false);
-      return;
     }
-    if (searchAbortRef.current) searchAbortRef.current.abort();
-    searchAbortRef.current = new AbortController();
-
-    (async () => {
-      try {
-        const params = new URLSearchParams({ q: debouncedSearch, contentType: "NEWS" });
-        const res = await fetch(`/api/content/search?${params}`, {
-          signal: searchAbortRef.current!.signal,
-        });
-        if (!res.ok) return;
-
-        const { results } = await res.json() as {
-          results: {
-            id: string; title: string; slug: string;
-            publishedAt: string | null; categoryName: string | null;
-          }[];
-        };
-
-        const q = debouncedSearch.toLowerCase();
-
-        const suggestions: SearchSuggestion[] = results
-          .map((r) => {
-            let relevance = 0;
-            const titleLower = r.title.toLowerCase();
-            if (titleLower.startsWith(q))   relevance += 15;
-            if (titleLower.includes(q))     relevance += 10;
-            if (r.categoryName?.toLowerCase().includes(q)) relevance += 8;
-            return {
-              id:       r.id,
-              title:    r.title,
-              slug:     r.slug,
-              category: r.categoryName ?? "News",
-              date:     formatDate(r.publishedAt),
-              relevance,
-            };
-          })
-          .filter((s) => s.relevance > 0)
-          .sort((a, b) => b.relevance - a.relevance)
-          .slice(0, 8);
-
-        setSearchSuggestions(suggestions);
-        setShowSuggestions(suggestions.length > 0);
-      } catch (err: any) {
-        if (err.name !== "AbortError") console.error(err);
-      }
-    })();
   }, [debouncedSearch]);
 
-  // ── Click-outside ───────────────────────────────────────────────────────────
+  // ── Click-outside ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node))
@@ -335,22 +415,26 @@ export default function NewsPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Date range ──────────────────────────────────────────────────────────────
+  // ── Date range ────────────────────────────────────────────────────────────
   const applyDateRangeFilter = (range: string) => {
-    const now = new Date();
+    const now  = new Date();
     const from = new Date();
     setSelectedDateRange(range);
     if (range === "custom") { setShowCustomDatePicker(true); return; }
     setShowCustomDatePicker(false);
     if (!range) { setDateRange({ from: "", to: "" }); return; }
-    const offsets: Record<string, () => void> = {
-      "24h":     () => from.setDate(now.getDate() - 1),
-      "week":    () => from.setDate(now.getDate() - 7),
-      "month":   () => from.setMonth(now.getMonth() - 1),
-      "3months": () => from.setMonth(now.getMonth() - 3),
-    };
-    offsets[range]?.();
-    setDateRange({ from: from.toISOString().split("T")[0], to: now.toISOString().split("T")[0] });
+    
+    switch(range) {
+      case "24h": from.setDate(now.getDate() - 1); break;
+      case "week": from.setDate(now.getDate() - 7); break;
+      case "month": from.setMonth(now.getMonth() - 1); break;
+      case "3months": from.setMonth(now.getMonth() - 3); break;
+    }
+    
+    setDateRange({ 
+      from: from.toISOString().split("T")[0], 
+      to: now.toISOString().split("T")[0] 
+    });
     setCurrentPage(1);
   };
 
@@ -364,31 +448,30 @@ export default function NewsPage() {
     return predefinedDateRanges.find((r) => r.value === selectedDateRange)?.label ?? "";
   };
 
-  // ── Filter helpers ──────────────────────────────────────────────────────────
+  // ── Filter helpers ────────────────────────────────────────────────────────
   const clearAllFilters = () => {
-    setSelectedCategorySlug(""); 
-    setSelectedTagSlug(""); 
+    setSelectedCategorySlug("");
+    setTagInput("");
     setSelectedReadingTimes([]);
-    setDateRange({ from: "", to: "" }); 
-    setSelectedDateRange(""); 
+    setDateRange({ from: "", to: "" });
+    setSelectedDateRange("");
     setShowCustomDatePicker(false);
-    setSearchQuery(""); 
-    setDebouncedSearch(""); 
+    setSearchQuery("");
     setSearchSuggestions([]);
-    setShowSuggestions(false); 
-    setCurrentPage(1); 
+    setShowSuggestions(false);
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
   const isAnyFilterActive = () =>
-    !!selectedCategorySlug || !!selectedTagSlug || selectedReadingTimes.length > 0 ||
+    !!selectedCategorySlug || !!tagInput || selectedReadingTimes.length > 0 ||
     !!dateRange.from || !!dateRange.to || !!searchQuery;
 
   const activeFilterCount = [
-    !!selectedCategorySlug, 
-    !!selectedTagSlug, 
+    !!selectedCategorySlug,
+    !!tagInput,
     selectedReadingTimes.length > 0,
-    !!(dateRange.from || dateRange.to), 
+    !!(dateRange.from || dateRange.to),
     !!searchQuery,
   ].filter(Boolean).length;
 
@@ -397,19 +480,11 @@ export default function NewsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // const openExternalLink = (url: string, title: string) => {
-  //   const safe = url.startsWith("http") ? url : `https://${url}`;
-  //   window.open(
-  //     `/split-view?url=${encodeURIComponent(safe)}&title=${encodeURIComponent(title)}`,
-  //     "_blank"
-  //   );
-  // };
-
- 
-  
   const selectedCategory = categories.find((c) => c.slug === selectedCategorySlug);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
 
-  // ── Loading screen ──────────────────────────────────────────────────────────
+  // ── Loading screen ────────────────────────────────────────────────────────
   if (isInitialLoading) {
     return (
       <main className="bg-background min-h-screen">
@@ -423,7 +498,7 @@ export default function NewsPage() {
     );
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="bg-background min-h-screen">
 
@@ -431,10 +506,12 @@ export default function NewsPage() {
       <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
         <div className="absolute inset-0" style={{ top: 96 }}>
           <div className="block lg:hidden relative w-full h-full">
-            <Image src="/news/mobileBannernews.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(max-width: 1024px) 100vw" />
+            <Image src="/news/mobileBannernews.png" alt="News Banner" fill
+              className="object-cover object-center" priority sizes="(max-width: 1024px) 100vw" />
           </div>
           <div className="hidden lg:block relative w-full h-full">
-            <Image src="/news/finalNewsbanner.png" alt="News Banner" fill className="object-cover object-center" priority sizes="(min-width: 1024px) 100vw" />
+            <Image src="/news/finalNewsbanner.png" alt="News Banner" fill
+              className="object-cover object-center" priority sizes="(min-width: 1024px) 100vw" />
           </div>
         </div>
         <div className="relative z-10 h-full flex items-center">
@@ -442,10 +519,13 @@ export default function NewsPage() {
             <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
               <motion.div initial="hidden" animate="visible" variants={bannerVariants}>
                 <h1 className="text-white leading-tight">
-                  <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">Women in Business News</span>
+                  <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
+                    Women in Business News
+                  </span>
                 </h1>
               </motion.div>
-              <motion.p initial="hidden" animate="visible" variants={bannerSubtitleVariants}
+              <motion.p
+                initial="hidden" animate="visible" variants={bannerSubtitleVariants}
                 className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl">
                 Stay informed with the latest news, insights, and success stories from women entrepreneurs worldwide
               </motion.p>
@@ -462,12 +542,7 @@ export default function NewsPage() {
             {featuredNews && (
               <ScrollReveal direction="left" delay={0.3} className="lg:col-span-2">
                 <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    
-                      window.location.href = `/news/${featuredNews.slug}`;
-                    
-                  }}
+                  onClick={() => { window.location.href = `/news/${featuredNews.slug}`; }}
                   className="relative block group bg-card rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden shadow-lg sm:shadow-xl hover:shadow-2xl transition-all duration-500 border-2 border-primary/10 cursor-pointer"
                 >
                   <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10">
@@ -478,7 +553,8 @@ export default function NewsPage() {
                   <div className="relative h-40 sm:h-64 lg:h-[340px] bg-gradient-to-br from-muted to-secondary">
                     {featuredNews.featuredImage ? (
                       <Image src={featuredNews.featuredImage} alt={featuredNews.title} fill
-                        className="object-cover transition-transform duration-700 group-hover:scale-105" priority sizes="(max-width: 1024px) 100vw, 66vw" />
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        priority sizes="(max-width: 1024px) 100vw, 66vw" />
                     ) : (
                       <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent flex items-center justify-center">
                         <div className="text-white/40 text-6xl font-display">{featuredNews.title.charAt(0)}</div>
@@ -492,9 +568,7 @@ export default function NewsPage() {
                         {featuredNews.categoryName ?? "News"}
                       </span>
                       {featuredNews.authorName && (
-                        <span className="text-xs text-muted-foreground">
-                          {featuredNews.authorName}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{featuredNews.authorName}</span>
                       )}
                     </div>
                     <h2 className="text-lg sm:text-xl font-display font-bold text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-2">
@@ -538,12 +612,7 @@ export default function NewsPage() {
                       {latestHeadlines.map((news, i) => (
                         <motion.div key={news.id} variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}>
                           <div
-                            onClick={(e) => {
-                              e.preventDefault();
-                             
-                                window.location.href = `/news/${news.slug}`;
-                              
-                            }}
+                            onClick={() => { window.location.href = `/news/${news.slug}`; }}
                             className="block cursor-pointer pb-3 sm:pb-4 border-b border-border last:border-0 last:pb-0 hover:bg-secondary/30 rounded-lg px-2 -mx-2 transition-all duration-200"
                           >
                             <div className="flex items-start gap-3">
@@ -585,19 +654,23 @@ export default function NewsPage() {
                 <div className="mt-4 pt-4 border-t border-border">
                   <Button variant="ghost"
                     className="w-full text-accent hover:bg-accent/10 hover:text-accent text-sm flex items-center justify-center gap-2"
-                    onClick={() => { clearAllFilters(); window.scrollTo({ top: document.getElementById("all-news-section")?.offsetTop ?? 0, behavior: "smooth" }); }}>
+                    onClick={() => {
+                      clearAllFilters();
+                      window.scrollTo({ top: document.getElementById("all-news-section")?.offsetTop ?? 0, behavior: "smooth" });
+                    }}>
                     View All News <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
             </ScrollReveal>
+
           </div>
         </section>
       </ScrollReveal>
 
-      {/* ══ ALL NEWS GRID ══════════════════════════════════════════════════ */}
+      {/* ══ ALL NEWS GRID ═══════════════════════════════════════════════════ */}
       <ScrollFade delay={0.3}>
-        <section id="all-news-section" className="px-4 sm:px-6 lg:px-8 py-12">
+        <section id="all-news-section" className="px-4 sm:px-6 lg:px-8 py-12 relative">
           <div className="max-w-screen-xl mx-auto">
 
             {/* Header + Search + Filter */}
@@ -606,7 +679,9 @@ export default function NewsPage() {
                 <div>
                   <AnimatedText as="h2" delay={0.1}>
                     {selectedCategory ? selectedCategory.name : "All News Articles"}
-                    {debouncedSearch && <span className="text-lg sm:text-xl text-primary"> — Search: {debouncedSearch}</span>}
+                    {debouncedSearch.length >= 2 && (
+                      <span className="text-lg sm:text-xl text-primary"> — Search: {debouncedSearch}</span>
+                    )}
                   </AnimatedText>
                   <AnimatedText as="p" delay={0.2}>
                     {isFilterLoading ? (
@@ -616,9 +691,8 @@ export default function NewsPage() {
                       </span>
                     ) : (
                       <>
-                        {newsItems.length} {newsItems.length === 1 ? "article" : "articles"} shown
-                        {totalItems !== newsItems.length && ` (filtered from ${totalItems} total)`}
-                        {debouncedSearch && ` matching "${debouncedSearch}"`}
+                        {totalItems} {totalItems === 1 ? "article" : "articles"} found
+                        {debouncedSearch.length >= 2 && ` matching "${debouncedSearch}"`}
                         {getDateRangeDisplayLabel() && ` • ${getDateRangeDisplayLabel()}`}
                       </>
                     )}
@@ -627,17 +701,27 @@ export default function NewsPage() {
               </ScrollReveal>
 
               <ScrollReveal direction="left" delay={0.3}>
-                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
+
                   {/* SEARCH */}
                   <div className="relative w-full sm:w-64" ref={searchRef}>
                     <form onSubmit={(e) => { e.preventDefault(); setShowSuggestions(false); }}>
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black z-10" />
-                      <Input type="search" placeholder="Search news…" className="pl-10 pr-10 w-full bg-white"
+                      <Input
+                        type="search"
+                        placeholder="Search news…"
+                        className="pl-10 pr-10 w-full bg-white"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => { if (debouncedSearch.length >= 2 && searchSuggestions.length > 0) setShowSuggestions(true); }} />
+                        onFocus={() => {
+                          if (debouncedSearch.length >= 2 && searchSuggestions.length > 0)
+                            setShowSuggestions(true);
+                        }}
+                      />
                       {searchQuery && (
-                        <button type="button" onClick={() => { setSearchQuery(""); setDebouncedSearch(""); }}
+                        <button
+                          type="button"
+                          onClick={() => { setSearchQuery(""); }}
                           className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
                           <X className="h-4 w-4 text-black" />
                         </button>
@@ -645,7 +729,10 @@ export default function NewsPage() {
                     </form>
                     <SearchSuggestions
                       suggestions={searchSuggestions}
-                      onSelect={(title) => { setSearchQuery(title); setShowSuggestions(false); }}
+                      onSelect={(title) => { 
+                        setSearchQuery(title); 
+                        setShowSuggestions(false); 
+                      }}
                       searchQuery={debouncedSearch}
                       isVisible={showSuggestions}
                       onClose={() => setShowSuggestions(false)}
@@ -654,7 +741,9 @@ export default function NewsPage() {
 
                   {/* FILTER */}
                   <div className="relative w-full sm:w-auto" ref={filterRef}>
-                    <Button variant="outline" className="w-full sm:w-auto flex items-center gap-2"
+                    <Button
+                      variant="outline"
+                      className="w-full xs:w-auto flex items-center justify-center gap-2"
                       onClick={() => setIsFilterOpen((v) => !v)}>
                       <SlidersHorizontal className="h-4 w-4" />
                       Filters
@@ -666,9 +755,25 @@ export default function NewsPage() {
                     </Button>
 
                     {isFilterOpen && (
-                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute top-full right-0 mt-1 w-80 sm:w-96 bg-white border border-border rounded-lg shadow-xl z-50 max-h-[80vh] overflow-y-auto p-4">
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+className="
+absolute
+top-[calc(100%+8px)]
+left-0
+right-0
+mx-auto
+w-full
+sm:w-96
+max-w-[92vw]
+bg-white border border-border
+rounded-2xl shadow-2xl
+z-[9999]
+max-h-[75vh] overflow-y-auto
+p-4
+">
+
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="text-lg font-semibold text-foreground">Filter Articles</h4>
                         </div>
@@ -683,7 +788,7 @@ export default function NewsPage() {
                             selectedValues={selectedCategory ? [selectedCategory.name] : []}
                             onChange={(vals) => {
                               const name = vals[vals.length - 1];
-                              const cat = categories.find((c) => c.name === name);
+                              const cat  = categories.find((c) => c.name === name);
                               setSelectedCategorySlug(cat?.slug ?? "");
                               setCurrentPage(1);
                             }}
@@ -692,19 +797,18 @@ export default function NewsPage() {
                           />
                         </div>
 
-                        {/* Tags - optional filter */}
+                        {/* Tags */}
                         <div className="mb-4">
-                          <h5 className="text-sm font-medium text-foreground mb-2">Filter by Tag</h5>
-                          <Input 
-                            placeholder="Enter tag name..." 
-                            value={selectedTagSlug}
-                            onChange={(e) => {
-                              setSelectedTagSlug(e.target.value);
-                              setCurrentPage(1);
-                            }}
+                          <h5 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+                            <Tag className="h-3.5 w-3.5" /> Filter by Tag
+                          </h5>
+                          <Input
+                            placeholder="Enter tag slug…"
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
                             className="w-full"
                           />
-                          <p className="text-xs text-muted-foreground mt-1">Enter tag slug (e.g., &quot;women-entrepreneurs&quot;)</p>
+                          
                         </div>
 
                         {/* Reading Time */}
@@ -713,14 +817,21 @@ export default function NewsPage() {
                             <h5 className="text-sm font-medium text-foreground mb-2">Reading Time</h5>
                             <div className="flex flex-wrap gap-2">
                               {readingTimeBuckets.map((bucket) => (
-                                <button key={bucket}
-                                  onClick={() => setSelectedReadingTimes((prev) =>
-                                    prev.includes(bucket) ? prev.filter((b) => b !== bucket) : [...prev, bucket]
-                                  )}
+                                <button
+                                  key={bucket}
+                                  onClick={() => {
+                                    setSelectedReadingTimes((prev) =>
+                                      prev.includes(bucket)
+                                        ? prev.filter((b) => b !== bucket)
+                                        : [...prev, bucket]
+                                    );
+                                    setCurrentPage(1);
+                                  }}
                                   className={`px-3 py-1.5 text-xs rounded-full border transition-all ${
                                     selectedReadingTimes.includes(bucket)
                                       ? "bg-primary text-white border-primary"
-                                      : "bg-secondary/50 border-border hover:bg-secondary"}`}>
+                                      : "bg-secondary/50 border-border hover:bg-secondary"
+                                  }`}>
                                   <Clock className="h-3 w-3 inline mr-1" />{bucket}
                                 </button>
                               ))}
@@ -735,17 +846,22 @@ export default function NewsPage() {
                           </h5>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                             {predefinedDateRanges.map((r) => (
-                              <button key={r.value} onClick={() => applyDateRangeFilter(r.value)}
+                              <button
+                                key={r.value}
+                                onClick={() => applyDateRangeFilter(r.value)}
                                 className={`px-3 py-2 text-xs rounded-lg border transition-all duration-200 ${
                                   selectedDateRange === r.value
                                     ? "bg-primary text-white border-primary scale-105"
-                                    : "bg-secondary/50 border-border hover:bg-secondary"}`}>
+                                    : "bg-secondary/50 border-border hover:bg-secondary"
+                                }`}>
                                 {r.label}
                               </button>
                             ))}
                           </div>
                           {showCustomDatePicker && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
                               className="grid grid-cols-2 gap-3 mt-3 p-3 bg-secondary/30 rounded-lg overflow-hidden">
                               <div>
                                 <label className="text-xs text-muted-foreground block mb-1">From</label>
@@ -760,7 +876,8 @@ export default function NewsPage() {
                             </motion.div>
                           )}
                           {(dateRange.from || dateRange.to) && (
-                            <button onClick={() => { setDateRange({ from: "", to: "" }); setSelectedDateRange(""); setShowCustomDatePicker(false); }}
+                            <button
+                              onClick={() => { setDateRange({ from: "", to: "" }); setSelectedDateRange(""); setShowCustomDatePicker(false); }}
                               className="text-xs text-primary hover:text-primary/80 mt-2 transition-colors">
                               Clear date range
                             </button>
@@ -769,10 +886,13 @@ export default function NewsPage() {
 
                         {/* Active chips */}
                         {isAnyFilterActive() && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 mt-2 border-t border-border">
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            className="pt-4 mt-2 border-t border-border">
                             <div className="flex items-center justify-between mb-2">
                               <h5 className="text-sm font-medium text-foreground">Active Filters</h5>
-                              <button onClick={clearAllFilters} className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
+                              <button
+                                onClick={clearAllFilters}
+                                className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
                                 <X className="h-3 w-3" /> Clear All
                               </button>
                             </div>
@@ -783,15 +903,17 @@ export default function NewsPage() {
                                   {selectedCategory.name}
                                 </Chip>
                               )}
-                              {selectedTagSlug && (
+                              {tagInput && (
                                 <Chip color="purple" icon={<Tag className="h-3 w-3" />}
-                                  onRemove={() => { setSelectedTagSlug(""); setCurrentPage(1); }}>
-                                  #{selectedTagSlug}
+                                  onRemove={() => { setTagInput(""); setCurrentPage(1); }}>
+                                  #{tagInput}
                                 </Chip>
                               )}
                               {selectedReadingTimes.map((bucket) => (
                                 <Chip key={bucket} color="blue" icon={<Clock className="h-3 w-3" />}
-                                  onRemove={() => setSelectedReadingTimes((prev) => prev.filter((b) => b !== bucket))}>
+                                  onRemove={() => {
+                                    setSelectedReadingTimes((prev) => prev.filter((b) => b !== bucket));
+                                  }}>
                                   {bucket}
                                 </Chip>
                               ))}
@@ -803,7 +925,7 @@ export default function NewsPage() {
                               )}
                               {searchQuery && (
                                 <Chip color="amber" icon={<Search className="h-3 w-3" />}
-                                  onRemove={() => { setSearchQuery(""); setDebouncedSearch(""); }}>
+                                  onRemove={() => { setSearchQuery(""); }}>
                                   Search: {searchQuery}
                                 </Chip>
                               )}
@@ -830,9 +952,12 @@ export default function NewsPage() {
                   </div>
                   <h3 className="text-lg sm:text-xl font-display font-bold text-foreground mb-2">No articles found</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    {debouncedSearch ? `No articles found matching "${debouncedSearch}".` : "No articles match the current filters."}
+                    {debouncedSearch.length >= 2
+                      ? `No articles found matching "${debouncedSearch}".`
+                      : "No articles match the current filters."}
                   </p>
-                  <Button onClick={clearAllFilters} className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
+                  <Button onClick={clearAllFilters}
+                    className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
                     View All News
                   </Button>
                 </div>
@@ -842,14 +967,14 @@ export default function NewsPage() {
                 <StaggerChildren>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {newsItems.map((news, index) => (
-                      <motion.div key={news.id} variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } }}>
+                      <motion.div
+                        key={news.id}
+                        variants={{
+                          hidden:  { opacity: 0, y: 30 },
+                          visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+                        }}>
                         <div
-                          onClick={(e) => {
-                            e.preventDefault();
-                          
-                              window.location.href = `/news/${news.slug}`;
-                            
-                          }}
+                          onClick={() => { window.location.href = `/news/${news.slug}`; }}
                           className="group bg-card rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 border border-border flex flex-col h-full cursor-pointer"
                         >
                           <div className="relative h-40 sm:h-44 bg-gradient-to-br from-muted to-secondary flex-shrink-0 overflow-hidden">
@@ -885,16 +1010,15 @@ export default function NewsPage() {
                             {news.tags && news.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mb-3">
                                 {news.tags.slice(0, 3).map((tag) => (
-                                  <button 
+                                  <button
                                     key={tag.id}
-                                    onClick={(e) => { 
-                                      e.preventDefault(); 
+                                    onClick={(e) => {
+                                      e.preventDefault();
                                       e.stopPropagation();
-                                      setSelectedTagSlug(tag.slug); 
-                                      setCurrentPage(1); 
+                                      setTagInput(tag.slug);
+                                      setCurrentPage(1);
                                     }}
-                                    className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-[10px] hover:bg-primary/10 hover:text-primary transition-colors"
-                                  >
+                                    className="px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-[10px] hover:bg-primary/10 hover:text-primary transition-colors">
                                     #{tag.name}
                                   </button>
                                 ))}
@@ -905,7 +1029,9 @@ export default function NewsPage() {
                                 <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                 {formatDate(news.publishedAt)}
                               </div>
-                              <motion.div whileHover={{ x: 5 }} transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                              <motion.div
+                                whileHover={{ x: 5 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 10 }}
                                 className="inline-flex items-center gap-1 px-2 py-1 -mx-2 -my-1 rounded-md text-primary group-hover:text-accent group-hover:bg-primary/5 transition-colors">
                                 Read <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
                               </motion.div>
@@ -919,34 +1045,92 @@ export default function NewsPage() {
 
                 {totalPages > 1 && (
                   <ScrollFade delay={0.5}>
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 sm:mt-12 pt-8 border-t border-border">
-                      <p className="text-sm text-muted-foreground">
-                        Showing page {currentPage} of {totalPages}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 1} className="gap-1">
-                          <ArrowRight className="h-3 w-3 rotate-180" /> Previous
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          {buildPageNumbers(currentPage, totalPages).map((p, i) =>
+                    <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-border">
+
+                      {/* Mobile pagination */}
+                      <div className="flex sm:hidden flex-col items-center gap-3">
+                        <p className="text-xs text-muted-foreground">
+                          Page {currentPage} of {totalPages}
+                        </p>
+                        <div className="flex items-center gap-1.5 w-full justify-center flex-wrap">
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="h-9 px-3 gap-1 text-xs">
+                            <ArrowRight className="h-3 w-3 rotate-180" />
+                            Prev
+                          </Button>
+
+                          {buildPageNumbers(currentPage, totalPages, true).map((p, i) =>
                             p === "…" ? (
-                              <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">…</span>
+                              <span key={`m-ellipsis-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
                             ) : (
-                              <motion.div key={p} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                                <Button variant={currentPage === p ? "default" : "outline"} size="sm"
-                                  className="w-10 h-10 p-0" onClick={() => handlePageChange(p as number)}>
+                              <motion.div key={`m-${p}`} whileTap={{ scale: 0.9 }}>
+                                <Button
+                                  variant={currentPage === p ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-9 w-9 p-0 text-xs"
+                                  onClick={() => handlePageChange(p as number)}>
                                   {p}
                                 </Button>
                               </motion.div>
                             )
                           )}
+
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="h-9 px-3 gap-1 text-xs">
+                            Next
+                            <ArrowRight className="h-3 w-3" />
+                          </Button>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={currentPage === totalPages} className="gap-1">
-                          Next <ArrowRight className="h-3 w-3" />
-                        </Button>
                       </div>
+
+                      {/* Desktop pagination */}
+                      <div className="hidden sm:flex flex-row items-center justify-between gap-4">
+                        <p className="text-sm text-muted-foreground shrink-0">
+                          Showing {startIndex + 1}–{endIndex} of {totalItems} articles
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="gap-1">
+                            <ArrowRight className="h-3 w-3 rotate-180" /> Previous
+                          </Button>
+
+                          <div className="flex items-center gap-1">
+                            {buildPageNumbers(currentPage, totalPages, false).map((p, i) =>
+                              p === "…" ? (
+                                <span key={`d-ellipsis-${i}`} className="px-2 text-muted-foreground">…</span>
+                              ) : (
+                                <motion.div key={`d-${p}`} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                                  <Button
+                                    variant={currentPage === p ? "default" : "outline"}
+                                    size="sm"
+                                    className="w-10 h-10 p-0"
+                                    onClick={() => handlePageChange(p as number)}>
+                                    {p}
+                                  </Button>
+                                </motion.div>
+                              )
+                            )}
+                          </div>
+
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="gap-1">
+                            Next <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+
                     </div>
                   </ScrollFade>
                 )}
