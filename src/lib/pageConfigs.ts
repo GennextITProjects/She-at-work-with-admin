@@ -66,8 +66,8 @@ export const entreChatConfig: ContentPageConfig = {
 export const eventsConfig: ContentPageConfig = {
   contentType:       "EVENT",
   slug:              "events",
-  bannerDesktop:     "/events/finalEventsbanner.png",   // TODO: upload banner
-  bannerMobile:      "/events/mobileEventsbanner.png",  // TODO: upload banner
+  bannerDesktop:     "/events/FinalEventsbanner.png",   // TODO: upload banner
+  bannerMobile:      "/events/Mobile-Events.png",  // TODO: upload banner
   bannerAlt:         "Events Banner",
   bannerTitle:       "Events & Opportunities",
   bannerSubtitle:    "Discover summits, workshops, networking sessions, and pitching events for women entrepreneurs. Find your next opportunity to connect, learn, and grow.",

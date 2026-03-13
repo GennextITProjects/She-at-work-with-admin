@@ -28,13 +28,19 @@ export default async function PressPage() {
       <Navbar />
 
       {/* ── Server-rendered, zero JS ──────────────────────────────────── */}
-      <ContentBanner
-        bannerDesktop={pressConfig.bannerDesktop}
-        bannerMobile={pressConfig.bannerMobile}
-        bannerAlt={pressConfig.bannerAlt}
-        bannerTitle={pressConfig.bannerTitle}
-        bannerSubtitle={pressConfig.bannerSubtitle}
-      />
+         <section className="relative px-4 sm:px-6 lg:px-8 pt-28 pb-2 overflow-hidden hero-gradient">
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
+              <div className="relative w-full mx-auto text-center text-white px-4">
+               
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4 px-2 sm:px-0">
+                      Press Room
+                    </h1>
+                    <p className="text-sm sm:text-base lg:text-lg text-white/90 mb-6 sm:mb-8 max-w-4xl mx-auto px-4 sm:px-8 lg:px-0">
+                      Latest press releases and news from Sheatwork
+                    </p>
+            
+              </div>
+            </section>
 
       <FeaturedSection
         featuredItem={featured}
