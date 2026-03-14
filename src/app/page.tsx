@@ -1,42 +1,41 @@
 // app/page.tsx
-"use client";
+// NO "use client" — Server Component.
+//
+// Previously this was "use client" purely because it imported client components.
+// That's wrong — a server component CAN import client components (they render as islands).
+// Removing "use client" here means:
+//   ✅ Page shell is server-rendered (Navbar, layout structure)
+//   ✅ Each section hydrates independently as a client island
+//   ✅ No unnecessary JS sent for the page wrapper itself
+//   ✅ generateMetadata works properly (requires server component)
 
-import { ScrollReveal } from "@/components/common/ScrollReveal";
-import Cta from "@/components/common/Cta";
-import { About } from "@/components/home/About";
-import { Categories } from "@/components/home/Categories";
-import FeaturedStories from "@/components/home/FeaturedNews";
+import type { Metadata } from "next";
+import { Navbar } from "@/components/navbar/Navbar";
 import { HeroSection } from "@/components/home/HeroSection";
 import { HeroStats } from "@/components/home/HeroStats";
+import { About } from "@/components/home/About";
+import FeaturedStories from "@/components/home/FeaturedNews";
+import { Categories } from "@/components/home/Categories";
 import { LatestBlogs } from "@/components/home/LatestBlogs";
-import { Navbar } from "@/components/navbar/Navbar";
+import Cta from "@/components/common/Cta";
+
+export const metadata: Metadata = {
+  title: "She At Work — Empowering Women Entrepreneurs",
+  description:
+    "A dynamic knowledge hub dedicated to amplifying the voices, achievements, and insights of women entrepreneurs globally.",
+};
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       <HeroSection />
-
-      {/* HeroStats has its own animation logic, no need for ScrollReveal wrapper */}
       <HeroStats />
-
-      {/* About has its own animation logic, no need for ScrollReveal wrapper */}
       <About />
-
-      {/* Other sections use ScrollReveal with once={false} */}
-      <ScrollReveal direction="up" threshold={0.1} delay={0} once={false}>
-        <FeaturedStories />
-      </ScrollReveal>
-      <ScrollReveal direction="up" threshold={0.1} delay={0} once={false}>
-        <Categories />
-      </ScrollReveal>
-      <ScrollReveal direction="up" threshold={0.1} delay={0} once={false}>
-        <LatestBlogs />
-      </ScrollReveal>
-
-      <ScrollReveal direction="up" threshold={0.1} delay={0} once={false}>
-        <Cta />
-      </ScrollReveal>
+      <FeaturedStories />
+      <Categories />
+      <LatestBlogs />
+      <Cta />
     </div>
   );
 }
