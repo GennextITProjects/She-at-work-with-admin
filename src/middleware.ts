@@ -28,6 +28,10 @@
 //
 //   ✅ NEW: protectedRoutes is pre-compiled { pattern: RegExp, roles }[]
 //      — zero regex compilation cost at request time
+//
+//   ✅ FIX: Unknown routes (404s) no longer redirect to /auth/login.
+//      Only explicitly listed PROTECTED_PREFIXES trigger a login redirect.
+//      Everything else passes through to Next.js → proper 404 handling.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -40,6 +44,19 @@ import {
 } from "@/routes";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+
+// ── Known route prefixes that require authentication ─────────────────────────
+// Only paths starting with these prefixes will redirect to /auth/login
+// when the user is not logged in. All other unknown paths (404s) will
+// pass through to Next.js and render the not-found page (or redirect to /).
+const PROTECTED_PREFIXES = [
+  "/(protected)", // your (protected) route group
+  "/dashboard",   // add any other protected prefixes here
+  "/admin",
+  "/account",
+  "/api/admin",
+  "/api/protected",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -74,9 +91,25 @@ export async function middleware(req: NextRequest) {
       : NextResponse.next();
   }
 
-  // ── 6. Everything else requires login ─────────────────────────────────────
+  // ── 6. Only redirect to login for known protected routes ──────────────────
+  //    Previously this was a catch-all: any unmatched route (including 404s)
+  //    would redirect to /auth/login. Now we only redirect if the path
+  //    is explicitly listed in PROTECTED_PREFIXES. Unknown/invalid paths
+  //    fall through to Next.js which renders the not-found page → home.
   if (!isLoggedIn) {
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    const isProtectedPath = PROTECTED_PREFIXES.some((prefix) =>
+      pathname.startsWith(prefix)
+    );
+
+    if (isProtectedPath) {
+      // Preserve the intended destination so we can redirect back after login
+      const loginUrl = new URL("/auth/login", req.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Not a known protected path → let Next.js handle it (renders 404 → home)
+    return NextResponse.next();
   }
 
   // ── 7. Role-based route protection ────────────────────────────────────────
