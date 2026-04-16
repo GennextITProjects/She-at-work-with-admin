@@ -113,7 +113,7 @@ export const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-white/10">
+        {/* <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-white/10">
           <p className="text-white/50 text-sm">
             © {new Date().getFullYear()} She At Work. All rights reserved.
           </p>
@@ -125,7 +125,7 @@ export const Footer = () => {
               Terms of Service
             </Link>
           </div>
-        </div>
+        </div> */}
       </div>
     </footer>
   );
