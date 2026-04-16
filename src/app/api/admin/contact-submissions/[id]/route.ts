@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { ContactSubmissionsTable, UsersTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { dbPool } from "@/db/index-pool";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -58,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       );
     }
 
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(ContactSubmissionsTable)
       .set(
         isResolved

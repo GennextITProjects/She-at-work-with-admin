@@ -1,9 +1,9 @@
 // app/api/admin/contact-submissions/[id]/resolve/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { ContactSubmissionsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
 
 
 
@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: 
       return NextResponse.json({ success: false, error: "resolvedBy is required" }, { status: 400 });
     }
 
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(ContactSubmissionsTable)
       .set({
         isResolved: true,

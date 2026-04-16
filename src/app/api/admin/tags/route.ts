@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { TagsTable } from "@/db/schema";
 import { desc, ilike, or, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       .replace(/-+/g, "-");
 
     // Check if tag already exists
-    const [existing] = await db
+    const [existing] = await dbPool
       .select()
       .from(TagsTable)
       .where(sql`${TagsTable.slug} = ${slug}`)
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [newTag] = await db
+    const [newTag] = await dbPool
       .insert(TagsTable)
       .values({
         name: name.trim(),

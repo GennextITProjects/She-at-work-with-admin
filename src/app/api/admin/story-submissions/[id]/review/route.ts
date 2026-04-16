@@ -2,7 +2,7 @@
 // SUPER_ADMIN + ADMIN: approve / reject a submission (status-only update)
 // For full publish flow (creates a content row), use the /publish sub-route instead.
 
-import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { StorySubmissionsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -31,7 +31,7 @@ export async function PATCH(
       );
     }
 
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(StorySubmissionsTable)
       .set({
         status,

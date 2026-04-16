@@ -21,6 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PublishDialog, { PublishPayload } from "./PublishDialog";
+import { useCurrentUser } from "@/hooks/auth";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,7 @@ export default function StorySubmissionDetail({ id }: Props) {
 
   // FIX: track toast timeout so overlapping toasts are properly cleared
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const user = useCurrentUser()
 
   // FIX: useCallback + clear previous timeout before setting new one
   const showToast = useCallback((msg: string, ok = true) => {
@@ -174,7 +176,7 @@ export default function StorySubmissionDetail({ id }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           // TODO: wire in useSession().data?.user?.id for production
-          reviewedBy:    "admin",
+          reviewedBy:    user?.id,
           reviewNotes:   payload.reviewNotes   || null,
           title:         payload.title,
           authorName:    payload.authorName    || null,

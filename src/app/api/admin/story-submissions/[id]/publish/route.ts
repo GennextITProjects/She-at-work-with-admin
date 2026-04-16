@@ -15,7 +15,7 @@
 // }
 /*eslint-disable @typescript-eslint/no-explicit-any */
 
-import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { ContentTable, StorySubmissionsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   const { id } = await params;
   try {
     // ── 1. Load submission ────────────────────────────────────────────────────
-    const [submission] = await db
+    const [submission] = await dbPool
       .select()
       .from(StorySubmissionsTable)
       .where(eq(StorySubmissionsTable.id, id))
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     // committed — previously a crash after ContentTable insert would leave the
     // submission stuck in PENDING with an orphaned content row.
     const { submission: updatedSubmission, content: newContent } =
-      await db.transaction(async (tx) => {
+      await dbPool.transaction(async (tx) => {
 
         // ── 2. Create content row ───────────────────────────────────────────
         const [content] = await tx

@@ -2,6 +2,7 @@
 // SUPER_ADMIN + ADMIN: list and create content
 /*eslint-disable  @typescript-eslint/no-explicit-any*/
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable, UsersTable } from "@/db/schema";
 import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
     const slug = toSlug(title);
 
     // Use transaction to ensure both content and tags are created atomically
-    const result = await db.transaction(async (tx) => {
+    const result = await dbPool.transaction(async (tx) => {
       const [newContent] = await tx
         .insert(ContentTable)
         .values({

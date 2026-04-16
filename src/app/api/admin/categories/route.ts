@@ -4,6 +4,7 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
 
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { CategoriesTable } from "@/db/schema";
 import { and, asc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     // Check slug + contentType uniqueness before insert to give a clear error
     // (the DB unique index would also catch this, but the PG error message is
     //  less user-friendly than the one we build here)
-    const existing = await db
+    const existing = await dbPool
       .select({ id: CategoriesTable.id })
       .from(CategoriesTable)
       .where(
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [category] = await db
+    const [category] = await dbPool
       .insert(CategoriesTable)
       .values({
         name:        name.trim(),

@@ -2,6 +2,7 @@
 // SUPER_ADMIN + ADMIN: get, update, delete a single content item
 
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable, UsersTable } from "@/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: 
     } = body;
 
     // Use transaction for updates
-    const result = await db.transaction(async (tx) => {
+    const result = await dbPool.transaction(async (tx) => {
       // Update content
       const updates: Partial<typeof ContentTable.$inferInsert> = {
         updatedAt: new Date(),
@@ -178,7 +179,7 @@ export async function DELETE(_req: NextRequest,  context: { params: Promise<{ id
 ) {
   const { id } = await context.params;
   try {
-    const [deleted] = await db
+    const [deleted] = await dbPool
       .delete(ContentTable)
       .where(eq(ContentTable.id, id))
       .returning({ id: ContentTable.id });

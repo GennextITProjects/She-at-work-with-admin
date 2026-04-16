@@ -2,6 +2,7 @@
 // ADMIN: GET single submission + PATCH to review/publish/reject
 
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { CategoriesTable, ContentTable, StorySubmissionsTable, UsersTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -94,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       );
     }
 
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(StorySubmissionsTable)
       .set({
         status,

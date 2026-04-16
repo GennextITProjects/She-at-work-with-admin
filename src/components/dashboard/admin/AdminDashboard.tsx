@@ -279,7 +279,7 @@ export default function AdminDashboard() {
           title="Pending Review" value={stats.content.pending + stats.stories.pending}
           sub={`${stats.content.pending} content · ${stats.stories.pending} stories`}
           icon={Clock} iconColor="text-amber-600"
-          onClick={() => router.push("/dashboard/admin/content?status=PENDING")}
+          onClick={() => router.push("/dashboard/admin/story-submissions")}
           urgent={stats.content.pending > 0 || stats.stories.pending > 0}
         />
         <StatCard

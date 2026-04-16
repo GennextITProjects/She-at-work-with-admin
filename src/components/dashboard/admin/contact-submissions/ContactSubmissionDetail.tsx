@@ -68,6 +68,12 @@ export default function ContactSubmissionDetail({ id }: Props) {
   // Unresolve confirm dialog
   const [unresolveOpen, setUnresolveOpen] = useState(false);
 
+  // Reply dialog
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [sendingReply, setSendingReply] = useState(false);
+
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
@@ -137,6 +143,47 @@ export default function ContactSubmissionDetail({ id }: Props) {
     }
   };
 
+  // ── Send Reply ─────────────────────────────────────────────────────────────
+  const handleSendReply = async () => {
+    if (!replyMessage.trim()) {
+      setReplyError("Please enter a reply message");
+      return;
+    }
+
+    if (replyMessage.trim().length > 10000) {
+      setReplyError("Reply message must be 10000 characters or fewer");
+      return;
+    }
+
+    setSendingReply(true);
+    setReplyError(null);
+    
+    try {
+      const res = await fetch(`/api/admin/contact-submissions/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          replyMessage: replyMessage.trim(),
+          adminName: "Admin", // You can get this from your session/user context
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error ?? "Failed to send reply");
+      
+      setReplyOpen(false);
+      setReplyMessage("");
+      showToast("Reply sent successfully!");
+      
+    } catch (err: any) {
+      setReplyError(err.message);
+      showToast(err.message, false);
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   // ── Render states ──────────────────────────────────────────────────────────
   if (fetching) {
     return (
@@ -197,12 +244,15 @@ export default function ContactSubmissionDetail({ id }: Props) {
               <Check className="h-3.5 w-3.5" /> Mark Resolved
             </Button>
           )}
-          {/* Reply via email */}
-          <a href={`mailto:${item.email}?subject=Re: ${encodeURIComponent(item.subject ?? "Your message")}`}>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Mail className="h-3.5 w-3.5" /> Reply by Email
-            </Button>
-          </a>
+          {/* Reply button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5"
+            onClick={() => setReplyOpen(true)}
+          >
+            <Mail className="h-3.5 w-3.5" /> Reply
+          </Button>
         </div>
       </div>
 
@@ -328,12 +378,14 @@ export default function ContactSubmissionDetail({ id }: Props) {
               <CardTitle className="text-sm font-semibold">Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <a href={`mailto:${item.email}?subject=Re: ${encodeURIComponent(item.subject ?? "Your message")}`}
-                className="block">
-                <Button variant="outline" size="sm" className="w-full gap-2">
-                  <Mail className="h-4 w-4" /> Reply by Email
-                </Button>
-              </a>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full gap-2"
+                onClick={() => setReplyOpen(true)}
+              >
+                <Mail className="h-4 w-4" /> Reply to {item.name}
+              </Button>
               {item.isResolved ? (
                 <Button variant="outline" size="sm"
                   className="w-full gap-2 text-amber-600 border-amber-200 hover:bg-amber-50"
@@ -415,6 +467,97 @@ export default function ContactSubmissionDetail({ id }: Props) {
               {processing
                 ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Saving…</>
                 : "Mark Unresolved"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reply Dialog ─────────────────────────────────────────────────── */}
+      <Dialog open={replyOpen} onOpenChange={(open) => {
+        if (!open) {
+          setReplyMessage("");
+          setReplyError(null);
+        }
+        setReplyOpen(open);
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Reply to {item.name}</DialogTitle>
+            <DialogDescription>
+              Your reply will be sent to {item.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Original message preview */}
+          <div className="p-4 rounded-lg bg-muted/40 border border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-sm">{item.name}</p>
+              <p className="text-xs text-muted-foreground">{item.email}</p>
+            </div>
+            {item.subject && (
+              <p className="text-xs font-medium text-muted-foreground">
+                Subject: {item.subject}
+              </p>
+            )}
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-1">Original message:</p>
+              <p className="text-sm text-foreground/80 bg-background p-3 rounded-md border border-border max-h-32 overflow-y-auto whitespace-pre-wrap">
+                {item.message}
+              </p>
+            </div>
+          </div>
+
+          {replyError && (
+            <p className="text-sm text-red-600">{replyError}</p>
+          )}
+
+          <div>
+            <Label htmlFor="replyMessage" className="mb-1.5 block">
+              Your Reply
+              <span className="text-xs text-muted-foreground ml-1">(required)</span>
+            </Label>
+            <Textarea 
+              id="replyMessage" 
+              rows={6}
+              placeholder="Type your reply here..."
+              value={replyMessage}
+              onChange={(e) => {
+                setReplyMessage(e.target.value);
+                if (replyError) setReplyError(null);
+              }}
+              className="resize-none"
+            />
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-muted-foreground">
+                {replyMessage.length}/10000 characters
+              </p>
+              {replyMessage.length > 9000 && replyMessage.length <= 10000 && (
+                <p className="text-xs text-amber-600">
+                  Approaching character limit
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setReplyOpen(false);
+                setReplyMessage("");
+                setReplyError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendReply} 
+              disabled={sendingReply || !replyMessage.trim()}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              {sendingReply
+                ? <><RefreshCw className="h-4 w-4 animate-spin" />Sending...</>
+                : <><Mail className="h-4 w-4" />Send Reply</>}
             </Button>
           </DialogFooter>
         </DialogContent>

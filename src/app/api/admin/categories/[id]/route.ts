@@ -3,6 +3,7 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
 
 import { db } from "@/db";
+import { dbPool } from "@/db/index-pool";
 import { CategoriesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -80,7 +81,7 @@ export async function PATCH(
       );
     }
 
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(CategoriesTable)
       .set(updates)
       .where(eq(CategoriesTable.id, id))
@@ -124,7 +125,7 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   try {
-    const [updated] = await db
+    const [updated] = await dbPool
       .update(CategoriesTable)
       .set({ isActive: false })
       .where(eq(CategoriesTable.id, id))

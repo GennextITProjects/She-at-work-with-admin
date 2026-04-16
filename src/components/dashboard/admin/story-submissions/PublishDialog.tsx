@@ -14,6 +14,7 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import ImageUploader from "../content/ImageUploader";
 import { RefreshCw, Send, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -24,12 +25,12 @@ type Category = { id: string; name: string; slug: string; contentType: string };
 // ─── Constants (outside component — never recreated on render) ─────────────────
 
 const CONTENT_TYPES = [
-  { value: "SUCCESS_STORY", label: "Success Story" },
-  { value: "BLOG",          label: "Blog"          },
-  { value: "NEWS",          label: "News"          },
-  { value: "ENTRECHAT",     label: "Entrechat"     },
-  { value: "PRESS",         label: "Press"         },
-  { value: "RESOURCE",      label: "Resource"      },
+  { value: "BLOG",      label: "Blog"      },
+  { value: "NEWS",      label: "News"      },
+  { value: "ENTRECHAT", label: "Entrechat" },
+  { value: "EVENT",     label: "Event"     },
+  { value: "PRESS",     label: "Press"     },
+  { value: "RESOURCE",  label: "Resource"  },
 ] as const;
 
 export type PublishPayload = {
@@ -54,9 +55,14 @@ interface PublishDialogProps {
 }
 
 const EMPTY_FORM: PublishPayload = {
-  title: "", authorName: "", summary: "",
-  contentType: "SUCCESS_STORY", categoryId: "",
-  featuredImage: "", readingTime: "", reviewNotes: "",
+  title:         "",
+  authorName:    "",
+  summary:       "",
+  contentType:   "BLOG",  // default to BLOG — SUCCESS_STORY removed
+  categoryId:    "",
+  featuredImage: "",
+  readingTime:   "",
+  reviewNotes:   "",
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -71,39 +77,37 @@ export default function PublishDialog({
   const [categories, setCategories] = useState<Category[]>([]);
   const [catLoading, setCatLoading] = useState(false);
 
-  // FIX: track the last fetched contentType to avoid re-fetching the same type
+  // Track the last fetched contentType to avoid re-fetching the same type
   const lastFetchedType = useRef<string | null>(null);
-  // FIX: AbortController ref so in-flight category requests are cancelled on cleanup
+  // AbortController ref so in-flight category requests are cancelled on cleanup
   const catAbortRef     = useRef<AbortController | null>(null);
 
-  // Pre-fill title and author when the dialog opens
+  // Pre-fill title and author when the dialog opens; reset form on close
   useEffect(() => {
     if (open) {
-      setForm((f) => ({
-        ...f,
+      setForm({
+        ...EMPTY_FORM,
         title:      submissionTitle,
         authorName: submitterName,
-      }));
-      // Reset category fetch cache when dialog re-opens so the list is fresh
+      });
+      setCategories([]);
       lastFetchedType.current = null;
     }
   }, [open, submissionTitle, submitterName]);
 
   // Fetch categories when contentType changes
-  // FIX: uses AbortController to cancel in-flight requests and skips fetch
-  // when the same type has already been loaded (avoids duplicate calls)
   useEffect(() => {
     if (!form.contentType) return;
     if (lastFetchedType.current === form.contentType) return; // already loaded
 
     if (catAbortRef.current) catAbortRef.current.abort();
-    catAbortRef.current   = new AbortController();
+    catAbortRef.current     = new AbortController();
     lastFetchedType.current = form.contentType;
 
     setCatLoading(true);
     fetch(
       `/api/admin/categories?contentType=${form.contentType}&activeOnly=true`,
-      { signal: catAbortRef.current.signal }
+      { signal: catAbortRef.current.signal },
     )
       .then((r) => r.json())
       .then((d) => setCategories(d.data ?? []))
@@ -221,24 +225,14 @@ export default function PublishDialog({
             />
           </div>
 
-          {/* Featured image */}
+          {/* Featured Image — full uploader with drag & drop, progress, URL fallback */}
           <div className="sm:col-span-2">
-            <Label className="text-xs text-muted-foreground mb-1.5 block">Featured Image URL</Label>
-            <Input
+            <ImageUploader
+              label="Featured Image"
               value={form.featuredImage}
-              onChange={(e) => set("featuredImage", e.target.value)}
-              placeholder="https://res.cloudinary.com/…"
+              onChange={(url) => set("featuredImage", url)}
+              folder="admin-content"
             />
-            {form.featuredImage && (
-              <div className="mt-2 rounded-lg overflow-hidden border h-28">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={form.featuredImage} alt="preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              </div>
-            )}
           </div>
 
           {/* Review notes (internal) */}
@@ -254,6 +248,7 @@ export default function PublishDialog({
               placeholder="Optional notes for the team…"
             />
           </div>
+
         </div>
 
         <DialogFooter className="gap-2">
