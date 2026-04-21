@@ -1,6 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+// CHANGES FROM ORIGINAL:
+//
+// 1. Removed all calls to /api/content/search.
+//    Suggestions now come from `suggestionCandidates` in the main listing
+//    response. This eliminates the second parallel HTTP request (and DB hit)
+//    that was firing on every debounce tick.
+//
+// 2. Removed `fetchSuggestions` function entirely.
+//
+// 3. `rankSuggestions` is now called on `data.suggestionCandidates` inside
+//    `fetchFiltered`, same place it already was — no behaviour change for
+//    the user, one fewer request to Neon.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -23,8 +36,8 @@ import { ContentPagination } from "./Contentpagination";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ITEMS_PER_PAGE  = 12;
-const DEBOUNCE_MS     = 500;
+const ITEMS_PER_PAGE = 12;
+const DEBOUNCE_MS    = 500;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +48,6 @@ type Props = {
   initialPages:        number;
   categories:          Category[];
   readingTimeBuckets:  string[];
-  // EntreChat extras
   initialIndustrySectors?:  string[];
   initialBusinessStages?:   string[];
   initialInterviewFormats?: string[];
@@ -52,8 +64,8 @@ export function ContentGridClient({
   initialItems,
   initialTotal,
   initialPages,
-  categories:          initialCategories,
-  readingTimeBuckets:  initialBuckets,
+  categories:         initialCategories,
+  readingTimeBuckets: initialBuckets,
   initialIndustrySectors  = [],
   initialBusinessStages   = [],
   initialInterviewFormats = [],
@@ -66,13 +78,12 @@ export function ContentGridClient({
   const isEntreChat = config.contentType === "ENTRECHAT";
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const [items,      setItems]      = useState<BaseContentItem[]>(initialItems);
-  const [totalPages, setTotalPages] = useState(initialPages);
-  const [totalItems, setTotalItems] = useState(initialTotal);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [readingTimeBuckets, setReadingTimeBuckets] = useState<string[]>(initialBuckets);
+  const [items,             setItems]             = useState<BaseContentItem[]>(initialItems);
+  const [totalPages,        setTotalPages]        = useState(initialPages);
+  const [totalItems,        setTotalItems]        = useState(initialTotal);
+  const [categories,        setCategories]        = useState<Category[]>(initialCategories);
+  const [readingTimeBuckets,setReadingTimeBuckets]= useState<string[]>(initialBuckets);
 
-  // EntreChat meta
   const [industrySectors,  setIndustrySectors]  = useState<string[]>(initialIndustrySectors);
   const [businessStages,   setBusinessStages]   = useState<string[]>(initialBusinessStages);
   const [interviewFormats, setInterviewFormats] = useState<string[]>(initialInterviewFormats);
@@ -104,25 +115,27 @@ export function ContentGridClient({
   const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   // ── Search suggestions ────────────────────────────────────────────────────
-  const [showSuggestions, setShowSuggestions]     = useState(false);
+  const [showSuggestions,   setShowSuggestions]   = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
 
   // ── UI ────────────────────────────────────────────────────────────────────
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ country?: string; state?: string; detected: boolean }>({ detected: false });
+  const [isFilterOpen,  setIsFilterOpen]  = useState(false);
+  const [userLocation,  setUserLocation]  = useState<{
+    country?: string; state?: string; detected: boolean
+  }>({ detected: false });
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const searchRef      = useRef<HTMLDivElement>(null);
-  const filterRef      = useRef<HTMLDivElement>(null);
-  const abortRef       = useRef<AbortController | null>(null);
-  const isFirstRender  = useRef(true);
-  const prevKeyRef     = useRef("");
+  const searchRef     = useRef<HTMLDivElement>(null);
+  const filterRef     = useRef<HTMLDivElement>(null);
+  const abortRef      = useRef<AbortController | null>(null);
+  const isFirstRender = useRef(true);
+  const prevKeyRef    = useRef("");
 
   // ── Debounced values ──────────────────────────────────────────────────────
-  const debouncedSearch  = useDebounce(filterState.searchQuery, DEBOUNCE_MS);
-  const debouncedTag     = useDebounce(filterState.tagInput,    DEBOUNCE_MS);
+  const debouncedSearch = useDebounce(filterState.searchQuery, DEBOUNCE_MS);
+  const debouncedTag    = useDebounce(filterState.tagInput,    DEBOUNCE_MS);
 
-  // ── Filter key (stable serialisation for change detection) ───────────────
+  // ── Filter key ────────────────────────────────────────────────────────────
   const buildFilterKey = useCallback(() => JSON.stringify({
     currentPage,
     search:          debouncedSearch,
@@ -141,6 +154,8 @@ export function ContentGridClient({
   }), [currentPage, debouncedSearch, debouncedTag, filterState]);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
+  // Single fetch — suggestions come from suggestionCandidates in the response.
+  // No separate call to /api/content/search.
   const fetchFiltered = useCallback(async () => {
     const key = buildFilterKey();
     if (key === prevKeyRef.current) return;
@@ -156,14 +171,14 @@ export function ContentGridClient({
         : undefined;
 
       const url = buildUrl({
-        contentType:     config.contentType,
-        page:            currentPage,
-        limit:           ITEMS_PER_PAGE,
-        search:          debouncedSearch.length >= 2 ? debouncedSearch : undefined,
-        categorySlugs:   filterState.selectedCategorySlugs.length ? filterState.selectedCategorySlugs : undefined,
-        tagSlug:         debouncedTag || undefined,
-        dateFrom:        filterState.dateRange.from || undefined,
-        dateTo:          filterState.dateRange.to || undefined,
+        contentType:   config.contentType,
+        page:          currentPage,
+        limit:         ITEMS_PER_PAGE,
+        search:        debouncedSearch.length >= 2 ? debouncedSearch : undefined,
+        categorySlugs: filterState.selectedCategorySlugs.length ? filterState.selectedCategorySlugs : undefined,
+        tagSlug:       debouncedTag || undefined,
+        dateFrom:      filterState.dateRange.from || undefined,
+        dateTo:        filterState.dateRange.to   || undefined,
         readingTime,
         ...(isEntreChat && {
           industrySector:  filterState.selectedIndustrySector  || undefined,
@@ -197,7 +212,7 @@ export function ContentGridClient({
         if (ec.states?.length)           setStates(ec.states);
       }
 
-      // Suggestions
+      // Suggestions come from the listing response — no second fetch needed.
       if (data.suggestionCandidates?.length && debouncedSearch.length >= 2) {
         const ranked = rankSuggestions(data.suggestionCandidates, debouncedSearch);
         setSearchSuggestions(ranked);
@@ -218,22 +233,26 @@ export function ContentGridClient({
       filterState, isEntreChat]);
 
   // ── Trigger fetch when filters change ─────────────────────────────────────
- useEffect(() => {
-  if (isFirstRender.current) { isFirstRender.current = false; return; }
-  fetchFiltered();
-  return () => { abortRef.current?.abort(); };
-}, [
-  currentPage, debouncedSearch, debouncedTag,
-  filterState.selectedCategorySlugs, filterState.selectedReadingTimes,
-  filterState.dateRange.from, filterState.dateRange.to,
-  filterState.selectedIndustrySector, filterState.selectedBusinessStage,
-  filterState.selectedInterviewFormat, filterState.selectedFounderRegion,
-  filterState.selectedSuccessFactor, filterState.selectedCountry, filterState.selectedState,
-  fetchFiltered, isEntreChat,
-]);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    fetchFiltered();
+    return () => { abortRef.current?.abort(); };
+  }, [
+    currentPage, debouncedSearch, debouncedTag,
+    filterState.selectedCategorySlugs, filterState.selectedReadingTimes,
+    filterState.dateRange.from, filterState.dateRange.to,
+    filterState.selectedIndustrySector, filterState.selectedBusinessStage,
+    filterState.selectedInterviewFormat, filterState.selectedFounderRegion,
+    filterState.selectedSuccessFactor, filterState.selectedCountry, filterState.selectedState,
+    fetchFiltered, isEntreChat,
+  ]);
+
   // ── Clear suggestions when search cleared ─────────────────────────────────
   useEffect(() => {
-    if (debouncedSearch.length < 2) { setSearchSuggestions([]); setShowSuggestions(false); }
+    if (debouncedSearch.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
   }, [debouncedSearch]);
 
   // ── Click-outside ─────────────────────────────────────────────────────────
@@ -254,16 +273,19 @@ export function ContentGridClient({
     }
     const now = new Date(); const from = new Date();
     switch (range) {
-      case "24h":     from.setDate(now.getDate() - 1);    break;
-      case "week":    from.setDate(now.getDate() - 7);    break;
-      case "month":   from.setMonth(now.getMonth() - 1);  break;
-      case "3months": from.setMonth(now.getMonth() - 3);  break;
+      case "24h":     from.setDate(now.getDate() - 1);   break;
+      case "week":    from.setDate(now.getDate() - 7);   break;
+      case "month":   from.setMonth(now.getMonth() - 1); break;
+      case "3months": from.setMonth(now.getMonth() - 3); break;
     }
     setFilterState((s) => ({
       ...s,
       selectedDateRange:    range,
       showCustomDatePicker: false,
-      dateRange: { from: from.toISOString().split("T")[0], to: now.toISOString().split("T")[0] },
+      dateRange: {
+        from: from.toISOString().split("T")[0],
+        to:   now.toISOString().split("T")[0],
+      },
     }));
     setCurrentPage(1);
   };
@@ -287,7 +309,7 @@ export function ContentGridClient({
   // ── Location detection (EntreChat) ────────────────────────────────────────
   const detectUserLocation = async () => {
     try {
-      const res = await fetch("https://ipapi.co/json/");
+      const res  = await fetch("https://ipapi.co/json/");
       const data = await res.json();
       setUserLocation({ country: data.country_name, state: data.region, detected: true });
       if (data.country_name) {
@@ -369,16 +391,21 @@ export function ContentGridClient({
                       }}
                     />
                     {filterState.searchQuery && (
-                      <button type="button"
+                      <button
+                        type="button"
                         onClick={() => setFilterState((s) => ({ ...s, searchQuery: "" }))}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10"
+                      >
                         <Search className="h-4 w-4 text-black" />
                       </button>
                     )}
                   </form>
                   <SearchSuggestions
                     suggestions={searchSuggestions}
-                    onSelect={(title) => { setFilterState((s) => ({ ...s, searchQuery: title })); setShowSuggestions(false); }}
+                    onSelect={(title) => {
+                      setFilterState((s) => ({ ...s, searchQuery: title }));
+                      setShowSuggestions(false);
+                    }}
                     searchQuery={debouncedSearch}
                     isVisible={showSuggestions}
                     onClose={() => setShowSuggestions(false)}
@@ -416,7 +443,6 @@ export function ContentGridClient({
                     setSelectedDateRange={(v) => setFilterState((s) => ({ ...s, selectedDateRange: v }))}
                     setShowCustomDate={(v) => setFilterState((s) => ({ ...s, showCustomDatePicker: v }))}
                     onDateRangePreset={applyDateRangePreset}
-                    // EntreChat
                     industrySectors={industrySectors}
                     businessStages={businessStages}
                     interviewFormats={interviewFormats}
@@ -457,8 +483,10 @@ export function ContentGridClient({
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   {config.emptyMessage}
                 </p>
-                <Button onClick={clearAllFilters}
-                  className="bg-gradient-to-r from-primary to-accent text-white font-semibold">
+                <Button
+                  onClick={clearAllFilters}
+                  className="bg-gradient-to-r from-primary to-accent text-white font-semibold"
+                >
                   {config.viewAllLabel}
                 </Button>
               </div>
