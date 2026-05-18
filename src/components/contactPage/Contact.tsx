@@ -14,6 +14,7 @@ import {
   MapPin,
   Minus,
   Plus,
+  RefreshCw,
   Twitter,
   Youtube
 } from "lucide-react";
@@ -106,6 +107,11 @@ export default function ContactPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Captcha state
+  const [captcha, setCaptcha] = useState("");
+  const [userCaptcha, setUserCaptcha] = useState("");
+  const [captchaError, setCaptchaError] = useState("");
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -113,6 +119,32 @@ export default function ContactPage() {
     subject: "",
     message: "",
   });
+
+  // Generate random captcha
+  const generateCaptcha = () => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptcha(result);
+    setUserCaptcha("");
+    setCaptchaError("");
+  };
+
+  // Initialize captcha on component mount
+  useState(() => {
+    generateCaptcha();
+  });
+
+  const validateCaptcha = () => {
+    if (userCaptcha !== captcha) {
+      setCaptchaError("Captcha doesn't match. Please try again.");
+      return false;
+    }
+    return true;
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -122,9 +154,16 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate captcha
+    if (!validateCaptcha()) {
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setSuccess(false);
+    setCaptchaError("");
 
     // Basic validation
     if (!formData.name || !formData.email || !formData.message) {
@@ -137,7 +176,10 @@ export default function ContactPage() {
       const res = await fetch("/api/contact-submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          captchaVerified: true,
+        }),
       });
 
       const data = await res.json();
@@ -152,14 +194,19 @@ export default function ContactPage() {
         subject: "",
         message: "",
       });
+      setUserCaptcha("");
+      // Generate new captcha on successful submission
+      generateCaptcha();
     } catch (err: any) {
       setError(err.message || "Failed to submit your message. Please try again.");
+      // Also generate new captcha on error
+      generateCaptcha();
     } finally {
       setLoading(false);
     }
   };
 
-    const bannerVariants: Variants = {
+  const bannerVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
   };
@@ -172,57 +219,57 @@ export default function ContactPage() {
     <main className="bg-background min-h-screen overflow-x-hidden">
 
       <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
-                    <div className="absolute inset-0" style={{ top: 96 }}>
-                      <div className="block lg:hidden relative w-full h-full">
-                        <Image
-                          src="/contactus/Mobile Contact us.png"
-                          alt="News Banner"
-                          fill
-                          className="object-cover object-center"
-                          priority
-                          sizes="(max-width: 1024px) 100vw"
-                        />
-                      </div>
-                      <div className="hidden lg:block relative w-full h-full">
-                        <Image
-                          src="/contactus/FinalContactusbanner.png"
-                          alt="News Banner"
-                          fill
-                          className="object-cover object-center"
-                          priority
-                          sizes="(min-width: 1024px) 100vw"
-                        />
-                      </div>
-                    </div>
-            
-                    {/* ✅ Text Centered Inside Gradient */}
-                    <div className="relative z-10 h-full flex items-center">
-                      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
-                          <motion.div
-                            initial="hidden"
-                            animate="visible"
-                            variants={bannerVariants}
-                          >
-                            <h1 className="text-white leading-tight">
-                              <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
-                              Get In Touch
-                              </span>
-                            </h1>
-                          </motion.div>
-            
-                          <motion.p
-                            initial="hidden"
-                            animate="visible"
-                            variants={bannerSubtitleVariants}
-                            className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
-                          >
-                          Have questions or want to collaborate? We&apos;d love to hear from you and support your entrepreneurial journey.
-                          </motion.p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
+        <div className="absolute inset-0" style={{ top: 96 }}>
+          <div className="block lg:hidden relative w-full h-full">
+            <Image
+              src="/contactus/Mobile Contact us.png"
+              alt="News Banner"
+              fill
+              className="object-cover object-center"
+              priority
+              sizes="(max-width: 1024px) 100vw"
+            />
+          </div>
+          <div className="hidden lg:block relative w-full h-full">
+            <Image
+              src="/contactus/FinalContactusbanner.png"
+              alt="News Banner"
+              fill
+              className="object-cover object-center"
+              priority
+              sizes="(min-width: 1024px) 100vw"
+            />
+          </div>
+        </div>
+
+        {/* ✅ Text Centered Inside Gradient */}
+        <div className="relative z-10 h-full flex items-center">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={bannerVariants}
+              >
+                <h1 className="text-white leading-tight">
+                  <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
+                    Get In Touch
+                  </span>
+                </h1>
+              </motion.div>
+
+              <motion.p
+                initial="hidden"
+                animate="visible"
+                variants={bannerSubtitleVariants}
+                className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
+              >
+                Have questions or want to collaborate? We&apos;d love to hear from you and support your entrepreneurial journey.
+              </motion.p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ================= CONTACT + FORM ================= */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
@@ -231,7 +278,7 @@ export default function ContactPage() {
           <motion.div 
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+            viewport={{ once: false, margin: "-50px" }}
             variants={fadeInUp}
             className="space-y-6 sm:space-y-8"
           >
@@ -259,12 +306,6 @@ export default function ContactPage() {
                   value: "info@sheatwork.com",
                   link: "mailto:info@sheatwork.com",
                 },
-                // {
-                //   icon: Phone,
-                //   label: "Call Us",
-                //   value: "+91 98765 43210",
-                //   link: "tel:+919876543210",
-                // },
                 {
                   icon: MapPin,
                   label: "Visit Us",
@@ -331,7 +372,7 @@ export default function ContactPage() {
           <motion.div 
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+            viewport={{ once: false, margin: "-50px" }}
             variants={scaleIn}
             className="relative"
           >
@@ -356,7 +397,7 @@ export default function ContactPage() {
                 <motion.div 
                   initial={{ width: 0 }}
                   whileInView={{ width: "48px" }}
-                  viewport={{ once: false }} // Changed to once: false
+                  viewport={{ once: false }}
                   transition={{ delay: 0.2, duration: 0.8 }}
                   className="h-1 bg-gradient-to-r from-primary to-accent rounded-full"
                 />
@@ -425,7 +466,7 @@ export default function ContactPage() {
                 variants={staggerContainer}
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+                viewport={{ once: false, margin: "-50px" }}
                 onSubmit={handleSubmit} 
                 className="space-y-3 sm:space-y-4 lg:space-y-5"
               >
@@ -458,6 +499,55 @@ export default function ContactPage() {
                     className="border-2 focus:border-primary transition-all duration-300 resize-none text-sm sm:text-base min-h-32"
                     required
                   />
+                </motion.div>
+
+                {/* CAPTCHA FIELD */}
+                <motion.div variants={fadeInUp} className="space-y-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-sm font-semibold flex items-center gap-1">
+                          Enter Captcha <span className="text-red-500">*</span>
+                        </label>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          value={userCaptcha}
+                          onChange={(e) => {
+                            setUserCaptcha(e.target.value);
+                            setCaptchaError("");
+                          }}
+                          required
+                          className="h-10 sm:h-12 rounded-lg border-2 border-border focus:border-primary transition-all pr-20"
+                          placeholder="Type the code"
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <button
+                            type="button"
+                            onClick={generateCaptcha}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Refresh
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center w-32 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border-2 border-dashed border-primary/30">
+                      <div className="text-lg font-mono font-bold tracking-wider text-primary select-none">
+                        {captcha}
+                      </div>
+                    </div>
+                  </div>
+                  {captchaError && (
+                    <p className="text-xs text-red-500 mt-1 animate-fade-in">
+                      {captchaError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Enter the characters shown above to verify you&apos;re human
+                  </p>
                 </motion.div>
 
                 <motion.div variants={fadeInUp}>
@@ -521,7 +611,7 @@ export default function ContactPage() {
                   <motion.p 
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
-                    viewport={{ once: false }} // Changed to once: false
+                    viewport={{ once: false }}
                     transition={{ delay: 0.5 }}
                     className="text-xs text-center text-muted-foreground mt-2"
                   >
@@ -538,7 +628,7 @@ export default function ContactPage() {
       <motion.section 
         initial={{ height: 0 }}
         whileInView={{ height: "80px" }}
-        viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+        viewport={{ once: false, margin: "-50px" }}
         transition={{ duration: 1.2 }}
         className="hero-gradient"
       />
@@ -548,7 +638,7 @@ export default function ContactPage() {
         <motion.div 
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+          viewport={{ once: false, margin: "-50px" }}
           variants={fadeInUp}
           className="max-w-screen-xl mx-auto text-center mb-8 sm:mb-12"
         >
@@ -563,7 +653,7 @@ export default function ContactPage() {
         <motion.div 
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+          viewport={{ once: false, margin: "-50px" }}
           variants={staggerContainer}
           className="max-w-4xl mx-auto space-y-3 sm:space-y-4"
         >
@@ -633,7 +723,7 @@ export default function ContactPage() {
       <motion.section 
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
-        viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+        viewport={{ once: false, margin: "-50px" }}
         transition={{ duration: 0.8 }}
         className="relative px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 overflow-hidden hero-gradient"
       >
@@ -656,7 +746,7 @@ export default function ContactPage() {
             variants={fadeInUp}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+            viewport={{ once: false, margin: "-50px" }}
             className="text-lg sm:text-xl lg:text-2xl font-display font-bold mb-2 sm:mb-3"
           >
             Follow Us on Social Media
@@ -665,7 +755,7 @@ export default function ContactPage() {
             variants={fadeInUp}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+            viewport={{ once: false, margin: "-50px" }}
             className="text-white/90 text-sm sm:text-base mb-6 sm:mb-8 max-w-3xl mx-auto"
           >
             Stay connected and inspired
@@ -675,7 +765,7 @@ export default function ContactPage() {
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, margin: "-50px" }} // Changed to once: false
+            viewport={{ once: false, margin: "-50px" }}
             className="flex flex-wrap justify-center gap-2 sm:gap-3 lg:gap-4"
           >
             {[
@@ -735,6 +825,24 @@ export default function ContactPage() {
           />
         </div>
       </motion.section>
+
+      {/* Add CSS animations for captcha error */}
+      <style jsx global>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out forwards;
+        }
+      `}</style>
     </main>
   );
 }
