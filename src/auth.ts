@@ -40,14 +40,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       // Block login if user doesn't exist or email not verified
       return !!(existingUser?.emailVerified);
     },
+async jwt({ token, user }) {
+  if (user) {
+    token.role = (user as ExtendedUser).role;
+  }
 
-    async jwt({ token }) {
-      if (!token.sub) return token;
-      const existingUser = await findUserById(token.sub);
-      if (!existingUser) return token;
-      token.role = existingUser.role;
-      return token;
-    },
+  return token;
+},
 
     async session({ session, token }) {
       if (token.sub  && session.user) session.user.id   = token.sub;

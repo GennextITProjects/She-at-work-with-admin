@@ -2,8 +2,8 @@
 // src/components/dashboard/layout/DashboardHeader.tsx
 "use client";
 
-import { User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -79,13 +79,7 @@ export default function DashboardHeader({ user, role }: DashboardHeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem
-              onClick={() => router.push("/dashboard/profile")}
-              className="text-foreground hover:text-primary hover:bg-secondary/20  cursor-pointer"
-            >
-              Profile Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-border" />
+           
             <DropdownMenuItem
               onClick={handleLogout}
               className="text-accent hover:text-primary hover:bg-accent/10  cursor-pointer font-medium"
