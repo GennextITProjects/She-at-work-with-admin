@@ -9,7 +9,7 @@ import { ContentBanner, ContentGridClient, FeaturedSection, fetchInitialContent 
 
 // ISR: page HTML rebuilt every 60 seconds in the background.
 // Returning visitors get instant cached HTML — no blank screen, no waterfall.
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "Women Entrepreneurship Events | She At Work",

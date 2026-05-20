@@ -6,11 +6,11 @@ const API_KEY = process.env.NEON_API_KEY!;
 const PROJECT_ID = process.env.NEON_PROJECT_ID!;
 const BASE_BRANCH = process.env.NEON_BASE_BRANCH || "production";
 
-const current = dayjs().format("YYYY-MM");
-const previous = dayjs().subtract(1, "month").format("YYYY-MM");
+const backupMonth = dayjs().subtract(1, "month").format("YYYY-MM");
+const deleteMonth = dayjs().subtract(2, "month").format("YYYY-MM");
 
-const newBranch = `backup-${current}`;
-const oldBranch = `backup-${previous}`;
+const newBranch = `backup-${backupMonth}`;
+const oldBranch = `backup-${deleteMonth}`;
 
 const baseUrl = `https://console.neon.tech/api/v2/projects/${PROJECT_ID}`;
 

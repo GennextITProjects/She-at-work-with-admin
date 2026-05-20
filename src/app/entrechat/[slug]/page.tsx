@@ -7,7 +7,7 @@
 //   KEPT     All JSX including EntrechatPostContent client island, industry chips,
 //            interviewee highlight card, getCategoryIcon, all EntreChat-specific fields
 
-import { fetchContentDetail, formatDate } from "@/components/content/fetchDetail";
+import { fetchContentDetailFromDB, formatDate } from "@/components/content/fetchDetail";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -22,13 +22,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) return { title: "EntreChat | She At Work" };
   const t = data.item.title.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&");
   return {
@@ -40,7 +40,7 @@ export async function generateMetadata(
 
 export default async function EntrechatDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) notFound();
 
   const { item: interview, related } = data;

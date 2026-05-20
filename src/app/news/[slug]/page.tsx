@@ -6,7 +6,7 @@
 //   ADDED    export const revalidate, generateMetadata, async server fetch
 //   KEPT     All JSX, processNewsContent, source badge, getCategoryIcon import
 
-import { fetchContentDetail, formatDate } from "@/components/content/fetchDetail";
+import {  fetchContentDetailFromDB, formatDate } from "@/components/content/fetchDetail";
 
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -18,13 +18,13 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) return { title: "News | She At Work" };
   const t = data.item.title.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&");
   return {
@@ -51,7 +51,7 @@ function processNewsContent(content: string, externalUrl: string | null): string
 
 export default async function NewsDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) notFound();
 
   const { item: news, related } = data;

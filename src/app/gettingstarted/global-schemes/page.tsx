@@ -6,7 +6,7 @@ import { Navbar } from "@/components/navbar/Navbar";
 import GlobalschemeComponent from "@/components/Globalschemes";
 
 // Government scheme data changes infrequently — cache for 10 minutes.
-export const revalidate = 600;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "Global Schemes & Government Programmes | She At Work",

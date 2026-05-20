@@ -9,8 +9,9 @@
 //   Gallery images are now extracted server-side via extractGalleryImages() in fetchDetail.ts
 
 import {
-  fetchContentDetail, formatDate,
+ formatDate,
   extractGalleryImages, processWordPressContent,
+  fetchContentDetailFromDB,
 } from "@/components/content/fetchDetail";
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -21,13 +22,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) return { title: "Press Room | She At Work" };
   const t = data.item.title.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&");
   return {
@@ -45,7 +46,7 @@ function isGalleryOnly(content: string | null, galleryImages: string[]): boolean
 
 export default async function PressDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) notFound();
 
   const { item: press, related } = data;

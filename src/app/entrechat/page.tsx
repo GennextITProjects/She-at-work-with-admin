@@ -7,7 +7,7 @@ import { entreChatConfig } from "@/lib/pageConfigs";
 import type { EntreChatApiResponse } from "@/components/content/types";
 import { ContentBanner, ContentGridClient, FeaturedSection, fetchInitialContent } from "@/components/content";
 
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "EntreChat Community | She At Work",
