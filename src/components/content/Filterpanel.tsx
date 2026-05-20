@@ -1,13 +1,13 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { MultiSelectDropdown } from "@/components/common/MultiSelectDropdown";
+import { Chip } from "@/components/content/Chip";
+import { Input } from "@/components/ui/input";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Building, Calendar, CalendarDays, Clock, FileText,
   Globe, MapPin, Tag, TrendingUp, Video, X,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { MultiSelectDropdown } from "@/components/common/MultiSelectDropdown";
-import { Chip } from "@/components/content/Chip";
 import type { Category, ContentPageConfig } from "./types";
 
 const predefinedDateRanges = [
@@ -144,7 +144,7 @@ export function FilterPanel({
           </div>
 
           {/* Tag */}
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <h5 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
               <Tag className="h-3.5 w-3.5" /> Filter by Tag
             </h5>
@@ -154,7 +154,7 @@ export function FilterPanel({
               onChange={(e) => setTagInput(e.target.value)}
               className="w-full"
             />
-          </div>
+          </div> */}
 
           {/* EntreChat-only filters */}
           {isEntreChat && (
