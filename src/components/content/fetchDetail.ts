@@ -1,16 +1,16 @@
 // components/content/fetchDetail.ts
-// Server-only. NO "use client". Used by all 5 [slug] detail pages.
-// Same base URL resolution as fetchContent.ts
+import { db } from "@/db";
+import {
+  CategoriesTable,
+  ContentTable,
+  ContentTagsTable,
+  TagsTable,
+} from "@/db/schema";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
-}
+// ============================================
+// TYPES
+// ============================================
 
 export type ApiTag = { id: string; name: string; slug: string };
 
@@ -30,7 +30,6 @@ export type ContentDetail = {
   categoryName: string | null;
   categorySlug: string | null;
   tags: ApiTag[];
-  // EntreChat extras
   interviewee?: string | null;
   industrySector?: string | null;
   businessStage?: string | null;
@@ -39,10 +38,8 @@ export type ContentDetail = {
   successFactor?: string | null;
   country?: string | null;
   state?: string | null;
-  // News extras
   source?: string | null;
   sourceType?: string | null;
-  // Press extras
   galleryImages?: string[] | null;
 };
 
@@ -52,9 +49,11 @@ export type RelatedItem = {
   slug: string;
   summary: string | null;
   featuredImage: string | null;
+  externalUrl: string | null;
   readingTime: number | null;
   publishedAt: string | null;
   authorName: string | null;
+  categoryId: string | null;
   categoryName: string | null;
   categorySlug: string | null;
   tags: ApiTag[];
@@ -62,37 +61,137 @@ export type RelatedItem = {
   source?: string | null;
 };
 
-export type DetailApiResponse = {
+export type DetailResponse = {
   item: ContentDetail;
   related: RelatedItem[];
 };
 
-/**
- * Fetch a single content item by slug.
- * ISR revalidate = 300s + cache tag for instant admin invalidation.
- * Call revalidateTag(`content-${slug}`) from admin server action after saving.
- */
-export async function fetchContentDetail(slug: string): Promise<DetailApiResponse | null> {
+// Helper to convert Date to ISO string
+function toISOStringOrNull(date: Date | string | null): string | null {
+  if (!date) return null;
+  if (date instanceof Date) return date.toISOString();
+  return date;
+}
+
+// ============================================
+// DIRECT DB FETCH
+// ============================================
+
+export async function fetchContentDetailFromDB(slug: string): Promise<DetailResponse | null> {
   try {
-    const base = getBaseUrl();
-    const res = await fetch(`${base}/api/content/${slug}`, {
-      next: {
-        revalidate: 300,
-        tags: [`content-${slug}`],
+    // ── 1. Fetch main content item ──────────────────────────────────────────
+    const [item] = await db
+      .select({
+        id:            ContentTable.id,
+        title:         ContentTable.title,
+        slug:          ContentTable.slug,
+        summary:       ContentTable.summary,
+        content:       ContentTable.content,
+        featuredImage: ContentTable.featuredImage,
+        externalUrl:   ContentTable.externalUrl,
+        readingTime:   ContentTable.readingTime,
+        publishedAt:   ContentTable.publishedAt,
+        authorName:    ContentTable.authorName,
+        contentType:   ContentTable.contentType,
+        categoryId:    ContentTable.categoryId,
+        categoryName:  CategoriesTable.name,
+        categorySlug:  CategoriesTable.slug,
+      })
+      .from(ContentTable)
+      .leftJoin(CategoriesTable, eq(ContentTable.categoryId, CategoriesTable.id))
+      .where(
+        and(
+          eq(ContentTable.slug, slug),
+          eq(ContentTable.status, "PUBLISHED")
+        )
+      )
+      .limit(1);
+
+    if (!item) return null;
+
+    // ── 2. Tags + related in parallel ──────────────────────────────────────
+    const tagsQuery = db
+      .select({ id: TagsTable.id, name: TagsTable.name, slug: TagsTable.slug })
+      .from(ContentTagsTable)
+      .innerJoin(TagsTable, eq(ContentTagsTable.tagId, TagsTable.id))
+      .where(eq(ContentTagsTable.contentId, item.id));
+
+    const relatedQuery = item.categoryId
+      ? db
+          .select({
+            id:            ContentTable.id,
+            title:         ContentTable.title,
+            slug:          ContentTable.slug,
+            summary:       ContentTable.summary,
+            featuredImage: ContentTable.featuredImage,
+            externalUrl:   ContentTable.externalUrl,
+            readingTime:   ContentTable.readingTime,
+            publishedAt:   ContentTable.publishedAt,
+            authorName:    ContentTable.authorName,
+            categoryId:    ContentTable.categoryId,
+            categoryName:  CategoriesTable.name,
+            categorySlug:  CategoriesTable.slug,
+          })
+          .from(ContentTable)
+          .leftJoin(CategoriesTable, eq(ContentTable.categoryId, CategoriesTable.id))
+          .where(
+            and(
+              eq(ContentTable.contentType, item.contentType),
+              eq(ContentTable.status, "PUBLISHED"),
+              eq(ContentTable.categoryId, item.categoryId!),
+              ne(ContentTable.id, item.id)
+            )
+          )
+          .orderBy(desc(ContentTable.publishedAt))
+          .limit(3)
+      : Promise.resolve([]);
+
+    const [tags, relatedRows] = await Promise.all([tagsQuery, relatedQuery]);
+
+    // ── 3. Tags for related posts ───────────────────────────────────────────
+    const relatedTagMap: Record<string, ApiTag[]> = {};
+
+    if (relatedRows.length > 0) {
+      const relatedTagRows = await db
+        .select({
+          contentId: ContentTagsTable.contentId,
+          tagId:     TagsTable.id,
+          tagName:   TagsTable.name,
+          tagSlug:   TagsTable.slug,
+        })
+        .from(ContentTagsTable)
+        .innerJoin(TagsTable, eq(ContentTagsTable.tagId, TagsTable.id))
+        .where(inArray(ContentTagsTable.contentId, relatedRows.map((r) => r.id)));
+
+      for (const tag of relatedTagRows) {
+        if (!relatedTagMap[tag.contentId]) relatedTagMap[tag.contentId] = [];
+        relatedTagMap[tag.contentId].push({ id: tag.tagId, name: tag.tagName, slug: tag.tagSlug });
+      }
+    }
+
+    // ── 4. Return complete response with date conversion ────────────────────
+    return {
+      item: { 
+        ...item, 
+        tags,
+        publishedAt: toISOStringOrNull(item.publishedAt),
       },
-      signal: AbortSignal.timeout(8000),
-    });
+      related: relatedRows.map((r) => ({
+        ...r,
+        tags: relatedTagMap[r.id] ?? [],
+        publishedAt: toISOStringOrNull(r.publishedAt),
+      })),
+    };
 
-    if (!res.ok) return null;
-
-    const data = await res.json().catch(() => null);
-    return data;
-  } catch {
+  } catch (error) {
+    console.error("[fetchContentDetailFromDB]", error);
     return null;
   }
 }
 
-// ── Shared server-safe utilities ──────────────────────────────────────────────
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 
 export function formatDate(iso: string | null): string {
   if (!iso) return "";

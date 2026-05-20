@@ -5,8 +5,7 @@
 //   REMOVED  "use client", useState, useEffect, isLoading spinner, pageUrl state
 //   ADDED    export const revalidate, generateMetadata, async server fetch
 //   KEPT     All JSX, sticky back nav, BlogPostContent (still "use client" — untouched)
-
-import { fetchContentDetail, formatDate } from "@/components/content/fetchDetail";
+import { fetchContentDetailFromDB, formatDate } from "@/components/content/fetchDetail";
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) return { title: "Blog | She At Work" };
   const t = data.item.title.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&");
   return {
@@ -35,7 +34,7 @@ export async function generateMetadata(
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) notFound();
 
   const { item: blog, related } = data;

@@ -12,7 +12,8 @@
 import {
   extractEventCategory, extractEventDate, extractEventFormat,
   extractEventLocation, extractEventPrice,
-  fetchContentDetail
+  fetchContentDetailFromDB,
+
 } from "@/components/content/fetchDetail";
 import { ShareBar } from "@/components/content/ShareBar";
 import { EventCTA } from "@/components/events/EventCTA";
@@ -29,7 +30,7 @@ export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) return { title: "Events | She At Work" };
   const t = data.item.title.replace(/&amp;/g, "&");
   return {
@@ -41,7 +42,7 @@ export async function generateMetadata(
 
 export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await fetchContentDetail(slug);
+  const data = await fetchContentDetailFromDB(slug);
   if (!data) notFound();
 
   const { item, related } = data;
