@@ -19,7 +19,7 @@ import { LatestBlogsCarousel } from "@/components/home/Latestblogscarousel";
 import { fetchPageContentMinimal } from "@/db/content";
 import { ProcessedStory } from "@/components/home/FeaturedNews";
 
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   metadataBase: new URL(

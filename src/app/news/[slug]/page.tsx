@@ -18,7 +18,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }

@@ -23,7 +23,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }

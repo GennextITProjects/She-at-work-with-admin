@@ -30,7 +30,7 @@ import {
 const DEBUG = process.env.NODE_ENV === "development";
 
 // Enable CDN caching
-export const revalidate = 60;
+export const revalidate = 1800;
 export const preferredRegion = "sin1";
 export const runtime = "nodejs";
 
@@ -128,7 +128,7 @@ function readingTimeBucketToSql(bucket: string): SQL<unknown> | null {
 }
 
 const CONTENT_HEADERS = {
-  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+  "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600"
 };
 const META_HEADERS = {
   "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600",

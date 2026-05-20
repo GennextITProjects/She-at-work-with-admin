@@ -9,7 +9,7 @@ import Gettingstartedcomponent from "@/components/Gettingstarted";
 // If this page is fully static (no DB data), use:
 //   export const dynamic = "force-static";
 // instead.
-export const revalidate = 600;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "Getting Started | She At Work",

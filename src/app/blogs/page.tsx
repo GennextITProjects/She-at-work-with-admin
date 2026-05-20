@@ -7,7 +7,7 @@ import { blogsConfig } from "@/lib/pageConfigs";
 import type { BaseApiResponse } from "@/components/content/types";
 import { ContentBanner, ContentGridClient, FeaturedSection, fetchInitialContent } from "@/components/content";
 
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "Inspiring Blogs | She At Work",

@@ -7,7 +7,7 @@ import type { BaseApiResponse } from "@/components/content/types";
 import { pressConfig } from "@/lib/pageConfigs";
 
 // ISR: page HTML rebuilt every 60 seconds in the background.
-export const revalidate = 60;
+export const revalidate = 1800;
 
 export const metadata = {
   title:       "Press & Media Coverage | She At Work",
