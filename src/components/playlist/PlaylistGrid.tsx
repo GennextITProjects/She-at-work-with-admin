@@ -1,0 +1,147 @@
+/*eslint-disable  @typescript-eslint/no-unused-vars */
+/*eslint-disable  @typescript-eslint/no-explicit-any */
+"use client"
+
+import { motion, Variants } from "framer-motion"
+import Image from "next/image"
+import Link from "next/link"
+import Cta from "@/components/common/Cta"
+import { AnimatedText, ScrollFade, StaggerChildren } from "@/components/common/ScrollFade"
+import { Play } from "lucide-react"
+
+// ── Animation variants (same as your other pages) ────────────────────────────
+
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+}
+
+const scaleIn: Variants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1, scale: 1,
+    transition: { type: "spring", stiffness: 260, damping: 20 },
+  },
+}
+
+const bannerVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
+}
+
+const bannerSubtitleVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] } },
+}
+
+export function PlaylistGrid({ playlists }: { playlists: any[] }) {
+  return (
+    <main className="bg-background min-h-screen">
+
+      {/* ── HERO BANNER — same pattern as CoreTeam/About ─────────────────── */}
+      <section className="relative px-4 sm:px-6 lg:px-8 pt-28  overflow-hidden hero-gradient">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
+        <div className="relative w-full mx-auto text-center text-white px-4">
+          <ScrollFade>
+            <motion.div
+              variants={bannerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4 px-2 sm:px-0">
+                Our Playlists
+              </h1>
+            </motion.div>
+            <motion.p
+              variants={bannerSubtitleVariants}
+              initial="hidden"
+              animate="visible"
+              className="text-sm sm:text-base lg:text-lg text-white/90 mb-6 max-w-xl mx-auto px-4 sm:px-0"
+            >
+              Curated video collections on women entrepreneurship, leadership stories, and resources.
+            </motion.p>
+           
+          </ScrollFade>
+        </div>
+      </section>
+
+      {/* ── PLAYLIST GRID ────────────────────────────────────────────────── */}
+      <section className="px-4 sm:px-6 lg:px-8 py-12 bg-secondary/10">
+        <div className="max-w-screen-xl mx-auto">
+
+          <StaggerChildren once={false}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+              {playlists.map((playlist: any, i: number) => {
+                const { title, thumbnails, description } = playlist.snippet
+                const videoCount = playlist.contentDetails?.itemCount ?? 0
+                const thumbnail = thumbnails?.high?.url ?? thumbnails?.default?.url
+
+                return (
+                  <motion.div
+                    key={playlist.id}
+                    variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
+                    whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
+                  >
+                    <Link
+                      href={`/playlists/${playlist.id}`}
+                      className="group  rounded-2xl overflow-hidden border border-border bg-card shadow-md hover:shadow-2xl transition-all duration-300 h-full flex flex-col"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative aspect-video overflow-hidden">
+                        <Image
+                          src={thumbnail}
+                          alt={title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        />
+                        {/* Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                        {/* Play overlay on hover */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="w-14 h-14 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
+                            <Play className="h-6 w-6 fill-white text-white ml-1" />
+                          </div>
+                        </div>
+
+                        {/* Video count badge */}
+                        <div className="absolute bottom-3 right-3 bg-black/75 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5">
+                          <Play className="h-3 w-3 fill-white" />
+                          {videoCount} videos
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-4 sm:p-5 flex flex-col flex-1">
+                        <h3 className="font-display font-semibold text-sm sm:text-base line-clamp-2 group-hover:text-primary transition-colors leading-snug mb-2">
+                          {title}
+                        </h3>
+                        {description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 flex-1 leading-relaxed">
+                            {description}
+                          </p>
+                        )}
+                        <div className="mt-3 flex items-center gap-1 text-xs text-primary font-medium">
+                          Watch playlist
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </StaggerChildren>
+        </div>
+      </section>
+
+      {/* ── CTA — same as every other page ──────────────────────────────── */}
+      <ScrollFade delay={0.2} once={false}>
+        <Cta />
+      </ScrollFade>
+    </main>
+  )
+}
