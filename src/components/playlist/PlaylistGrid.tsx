@@ -105,7 +105,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                     whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
                   >
                     <Link
-                      href={`/playlists/${playlist.id}`}
+                      href={`/sheDiaries/${playlist.id}`}
                       className="group  rounded-2xl overflow-hidden border border-border bg-card shadow-md hover:shadow-2xl transition-all duration-300 h-full flex flex-col"
                     >
                       {/* Thumbnail */}
@@ -145,7 +145,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                           </p>
                         )}
                         <div className="mt-3 flex items-center gap-1 text-xs text-primary font-medium">
-                          Watch playlist
+                          Watch
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>

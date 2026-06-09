@@ -91,7 +91,7 @@ export function PlaylistDetailClient({
             className="mb-5"
           >
             <Link
-              href="/playlists"
+              href="/sheDiaries"
               className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -100,9 +100,7 @@ export function PlaylistDetailClient({
           </motion.div>
 
           <motion.div variants={bannerVariants} initial="hidden" animate="visible">
-            <p className="text-white/70 text-xs sm:text-sm font-semibold uppercase tracking-widest mb-3">
-              She At Work · Playlist
-            </p>
+            
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4 max-w-3xl leading-tight text-white">
               {playlistTitle}
             </h1>
