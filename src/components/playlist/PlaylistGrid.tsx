@@ -38,8 +38,9 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
   return (
     <main className="bg-background min-h-screen">
 
+
       {/* ── HERO BANNER — same pattern as CoreTeam/About ─────────────────── */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pt-28  overflow-hidden hero-gradient">
+      {/* <section className="relative px-4 sm:px-6 lg:px-8 pt-28  overflow-hidden hero-gradient">
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
         <div className="relative w-full mx-auto text-center text-white px-4">
           <ScrollFade>
@@ -63,7 +64,48 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
            
           </ScrollFade>
         </div>
-      </section>
+      </section> */}\
+
+            <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden">
+              <div className="absolute inset-0">
+                <div className="block lg:hidden relative w-full h-full">
+                  <Image
+                    src="/aboutus/Mobile about us.png"
+                    alt="About Us Banner"
+                    fill className="object-cover object-center" priority
+                    sizes="(max-width: 1024px) 100vw"
+                  />
+                </div>
+                <div className="hidden lg:block relative w-full h-full">
+                  <Image
+                    src="/aboutus/finalAboutusbanner.png"
+                    alt="About Us Banner"
+                    fill className="object-cover object-center" priority
+                    sizes="(min-width: 1024px) 100vw"
+                  />
+                </div>
+              </div>
+      
+              <div className="relative z-10 h-full flex items-center">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+                    <motion.div initial="hidden" animate="visible" variants={bannerVariants}>
+                      <h1 className="text-white leading-tight">
+                        <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
+                          Our Playlists
+                        </span>
+                      </h1>
+                    </motion.div>
+                    <motion.p
+                      initial="hidden" animate="visible" variants={bannerSubtitleVariants}
+                      className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-white/90 leading-relaxed max-w-xl"
+                    >
+                      Curated video collections on women entrepreneurship, leadership stories, and resources.
+                    </motion.p>
+                  </div>
+                </div>
+              </div>
+            </section>
 
       {/* ── PLAYLIST GRID ────────────────────────────────────────────────── */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 bg-secondary/10">

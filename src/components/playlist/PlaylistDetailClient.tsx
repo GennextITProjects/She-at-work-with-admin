@@ -60,11 +60,73 @@ export function PlaylistDetailClient({
   return (
     <main className="bg-background min-h-screen">
 
+   <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden">
+              <div className="absolute inset-0" style={{ top: 96 }}>
+                <div className="block lg:hidden relative w-full h-full">
+                  <Image
+                    src="/aboutus/Mobile about us.png"
+                    alt="About Us Banner"
+                    fill className="object-cover object-center" priority
+                    sizes="(max-width: 1024px) 100vw"
+                  />
+                </div>
+                <div className="hidden lg:block relative w-full h-full">
+                  <Image
+                    src="/aboutus/finalAboutusbanner.png"
+                    alt="About Us Banner"
+                    fill className="object-cover object-center" priority
+                    sizes="(min-width: 1024px) 100vw"
+                  />
+                </div>
+              </div>
+      
+              <div className="relative z-10 h-full flex items-center">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
+                   {/* Back link */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-5"
+          >
+            <Link
+              href="/playlists"
+              className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              All Playlists
+            </Link>
+          </motion.div>
+
+          <motion.div variants={bannerVariants} initial="hidden" animate="visible">
+            <p className="text-white/70 text-xs sm:text-sm font-semibold uppercase tracking-widest mb-3">
+              She At Work · Playlist
+            </p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4 max-w-3xl leading-tight text-white">
+              {playlistTitle}
+            </h1>
+          </motion.div>
+
+          {playlistDescription && (
+            <motion.p
+              variants={bannerSubtitleVariants}
+              initial="hidden"
+              animate="visible"
+              className="text-sm sm:text-base text-white/80 max-w-2xl line-clamp-2"
+            >
+              {playlistDescription}
+            </motion.p>
+          )}
+                  </div>
+                </div>
+              </div>
+            </section>
       {/* ── HERO BANNER — same pattern as CoreTeam ───────────────────────── */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pt-28 pb-10 overflow-hidden hero-gradient">
+      {/* <section className="relative px-4 sm:px-6 lg:px-8 pt-28 pb-10 overflow-hidden hero-gradient">
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
         <div className="relative max-w-screen-xl mx-auto text-white px-4">
-          {/* Back link */}
+   
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -100,7 +162,7 @@ export function PlaylistDetailClient({
             </motion.p>
           )}
         </div>
-      </section>
+      </section> */}
 
       {/* ── PLAYER + VIDEO LIST ──────────────────────────────────────────── */}
       <section className="px-4 sm:px-6 lg:px-8 py-10 bg-secondary/10">
