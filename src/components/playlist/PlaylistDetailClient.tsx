@@ -60,8 +60,8 @@ export function PlaylistDetailClient({
   return (
     <main className="bg-background min-h-screen">
 
-   <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden">
-              <div className="absolute inset-0" style={{ top: 96 }}>
+  <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
+             <div className="absolute inset-0" style={{ top: 96 }}>
                 <div className="block lg:hidden relative w-full h-full">
                   <Image
                     src="/aboutus/Mobile about us.png"
@@ -95,7 +95,7 @@ export function PlaylistDetailClient({
               className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
-              All Playlists
+              She Diaries
             </Link>
           </motion.div>
 

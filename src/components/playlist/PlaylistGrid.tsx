@@ -39,52 +39,32 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
     <main className="bg-background min-h-screen">
 
 
-      {/* ── HERO BANNER — same pattern as CoreTeam/About ─────────────────── */}
-      {/* <section className="relative px-4 sm:px-6 lg:px-8 pt-28  overflow-hidden hero-gradient">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
-        <div className="relative w-full mx-auto text-center text-white px-4">
-          <ScrollFade>
-            <motion.div
-              variants={bannerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4 px-2 sm:px-0">
-                Our Playlists
-              </h1>
-            </motion.div>
-            <motion.p
-              variants={bannerSubtitleVariants}
-              initial="hidden"
-              animate="visible"
-              className="text-sm sm:text-base lg:text-lg text-white/90 mb-6 max-w-xl mx-auto px-4 sm:px-0"
-            >
-              Curated video collections on women entrepreneurship, leadership stories, and resources.
-            </motion.p>
-           
-          </ScrollFade>
-        </div>
-      </section> */}\
-
-            <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden">
-              <div className="absolute inset-0">
-                <div className="block lg:hidden relative w-full h-full">
-                  <Image
-                    src="/aboutus/Mobile about us.png"
-                    alt="About Us Banner"
-                    fill className="object-cover object-center" priority
-                    sizes="(max-width: 1024px) 100vw"
-                  />
+            <section className="relative h-[480px] md:h-[600px] lg:h-[470px] overflow-hidden pt-24">
+             <div className="absolute inset-0" style={{ top: 96 }}>
+                  <div className="block lg:hidden relative w-full h-full">
+                    <Image
+                     
+                      src="/news/mobileBannernews.png"
+                      
+                      
+                      alt="She Diaries"
+                      fill
+                      className="object-cover object-center"
+                      priority
+                      sizes="(max-width: 1024px) 100vw"
+                    />
+                  </div>
+                  <div className="hidden lg:block relative w-full h-full">
+                    <Image
+                       src="/news/finalNewsbanner.png"
+                      alt="She Diaries"
+                      fill
+                      className="object-cover object-center"
+                      priority
+                      sizes="(min-width: 1024px) 100vw"
+                    />
+                  </div>
                 </div>
-                <div className="hidden lg:block relative w-full h-full">
-                  <Image
-                    src="/aboutus/finalAboutusbanner.png"
-                    alt="About Us Banner"
-                    fill className="object-cover object-center" priority
-                    sizes="(min-width: 1024px) 100vw"
-                  />
-                </div>
-              </div>
       
               <div className="relative z-10 h-full flex items-center">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -92,7 +72,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                     <motion.div initial="hidden" animate="visible" variants={bannerVariants}>
                       <h1 className="text-white leading-tight">
                         <span className="block text-3xl sm:text-4xl lg:text-6xl font-bold">
-                          Our Playlists
+                          She Diaries
                         </span>
                       </h1>
                     </motion.div>
