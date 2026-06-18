@@ -3,13 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useInView } from "framer-motion";
-
-const stats = [
-  { value: 975, suffix: "+", label: "Articles & Resources" },
-  { value: 121, suffix: "+", label: "Events & Webinars" },
-  { value: 50, suffix: "k+", label: "Community Reach" },
-  { value: 85, suffix: "+", label: "Countries Reached" },
-];
+import type { SiteSettingRow } from "@/lib/db/site-settings";
 
 const AnimatedNumber = ({ 
   target, 
@@ -22,27 +16,20 @@ const AnimatedNumber = ({
   startAnimation: boolean;
   reset: boolean;
 }) => {
-  const [count, setCount] = useState(100);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!startAnimation) {
-      setCount(100); // Reset to initial value
-      return;
-    }
+    if (!startAnimation || target === 0) return;
 
-    const start = 100;
+    const start = 0;
     const duration = 1800;
     const startTime = performance.now();
 
     const animate = (time: number) => {
       const progress = Math.min((time - startTime) / duration, 1);
       const value = Math.floor(start + (target - start) * progress);
-
       setCount(value);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
+      if (progress < 1) requestAnimationFrame(animate);
     };
 
     requestAnimationFrame(animate);
@@ -56,21 +43,34 @@ const AnimatedNumber = ({
   );
 };
 
-export const HeroStats = () => {
+function parseStats(data: SiteSettingRow[]) {
+  return data
+    .filter((s) => !s.key.endsWith("_suffix"))
+    .map((s) => ({
+      value: Number(s.value),
+      suffix: data.find((x) => x.key === `${s.key}_suffix`)?.value ?? "+",
+      label: s.label.replace(" Count", ""),
+    }));
+}
+
+export const HeroStats = ({ data }: { data: SiteSettingRow[] }) => {
   const sectionRef = useRef(null);
   const [startAnimation, setStartAnimation] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [animationKey, setAnimationKey] = useState(0); // Key to force re-mount
+  const [animationKey, setAnimationKey] = useState(0);
+
+  const stats = parseStats(data);
+
   const isInView = useInView(sectionRef, { 
     amount: 0.4,
-    margin: "0px 0px -100px 0px" // Trigger when 100px before entering viewport
+    margin: "0px 0px -100px 0px"
   });
 
   // Trigger animation when visible - and reset when not visible
   useEffect(() => {
     if (isInView && !startAnimation) {
       setStartAnimation(true);
-      setAnimationKey(prev => prev + 1); // Force re-mount of animated numbers
+      setAnimationKey(prev => prev + 1);
     } else if (!isInView && startAnimation) {
       setStartAnimation(false);
     }
@@ -81,7 +81,6 @@ export const HeroStats = () => {
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % stats.length);
     }, 2000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -89,7 +88,7 @@ export const HeroStats = () => {
     <section
       ref={sectionRef}
       className="border-t border-border bg-background"
-      key={animationKey} // Add key to force re-render
+      key={animationKey}
     >
       <div className="mx-auto max-w-screen-xl px-5 py-10 sm:py-14">
 
@@ -115,7 +114,6 @@ export const HeroStats = () => {
                   reset={!isInView}
                 />
               </div>
-
               <span className="mt-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {stat.label}
               </span>
@@ -135,7 +133,6 @@ export const HeroStats = () => {
                   reset={!isInView}
                 />
               </div>
-
               <span className="mt-3 text-base font-medium text-muted-foreground uppercase tracking-wide">
                 {stat.label}
               </span>

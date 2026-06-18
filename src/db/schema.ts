@@ -459,6 +459,28 @@ export const ContactSubmissionsTable = pgTable(
   ]
 );
 
+export const SiteSettingsTable = pgTable(
+  "site_settings",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    label: text("label").notNull(),
+    group: text("group").notNull().default("general"),
+    isActive: boolean("is_active").default(true).notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("site_settings_key_key").on(table.key),
+    index("site_settings_group_idx").on(table.group),
+    index("site_settings_group_active_idx").on(table.group, table.isActive),
+  ]
+);
+
+export type SiteSetting = typeof SiteSettingsTable.$inferSelect;
+export type NewSiteSetting = typeof SiteSettingsTable.$inferInsert;
+
 ////////////////////////////////////////////////////////////
 //////////////////// RELATIONS //////////////////////////////
 ////////////////////////////////////////////////////////////

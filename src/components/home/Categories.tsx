@@ -1,3 +1,4 @@
+// components/home/Categories.tsx
 "use client";
 
 import {
@@ -10,41 +11,28 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useInView } from "framer-motion";
+import type { SiteSettingRow } from "@/lib/db/site-settings";
 
-const categories = [
-  {
-    name: "Blogs",
-    description: "Insights, tips and thought leadership from women...",
-    count: 875,
-    suffix: "+",
-    icon: BookOpen,
-    href: "/blogs",
-  },
-  {
-    name: "News",
-    description: "Latest updates on women entrepreneurship and...",
-    count: 500,
-    suffix: "+",
-    icon: Newspaper,
-    href: "/news",
-  },
-  {
-    name: "Entrechat",
-    description: "In-depth conversations with successful women founders",
-    count: 121,
-    suffix: "+",
-    icon: MessageCircle,
-    href: "/entrechat",
-  },
-  {
-    name: "Events",
-    description: "Workshops, Webinars and networking opportunities",
-    count: 50,
-    suffix: "+",
-    icon: Calendar,
-    href: "/events",
-  },
-];
+const iconMap: Record<string, React.ElementType> = {
+  cat_blogs_count: BookOpen,
+  cat_news_count: Newspaper,
+  cat_entrechat_count: MessageCircle,
+  cat_events_count: Calendar,
+};
+
+const hrefMap: Record<string, string> = {
+  cat_blogs_count: "/blogs",
+  cat_news_count: "/news",
+  cat_entrechat_count: "/entrechat",
+  cat_events_count: "/events",
+};
+
+const descriptionMap: Record<string, string> = {
+  cat_blogs_count: "Insights, tips and thought leadership from women...",
+  cat_news_count: "Latest updates on women entrepreneurship and...",
+  cat_entrechat_count: "In-depth conversations with successful women founders",
+  cat_events_count: "Workshops, Webinars and networking opportunities",
+};
 
 // Animated Number Component
 const AnimatedNumber = ({ 
@@ -58,27 +46,20 @@ const AnimatedNumber = ({
   startAnimation: boolean;
   reset: boolean;
 }) => {
-  const [count, setCount] = useState(100);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!startAnimation) {
-      setCount(100); // Reset to initial value
-      return;
-    }
+    if (!startAnimation || target === 0) return;
 
-    const start = 100;
+    const start = 0;
     const duration = 1800;
     const startTime = performance.now();
 
     const animate = (time: number) => {
       const progress = Math.min((time - startTime) / duration, 1);
       const value = Math.floor(start + (target - start) * progress);
-
       setCount(value);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
+      if (progress < 1) requestAnimationFrame(animate);
     };
 
     requestAnimationFrame(animate);
@@ -92,13 +73,29 @@ const AnimatedNumber = ({
   );
 };
 
-export const Categories = () => {
+function parseCategories(data: SiteSettingRow[]) {
+  return data
+    .filter((s) => !s.key.endsWith("_suffix"))
+    .map((s) => ({
+      name: s.label.replace(" Category Count", ""),
+      description: descriptionMap[s.key] ?? "",
+      count: Number(s.value),
+      suffix: data.find((x) => x.key === `${s.key.replace("_count", "")}_suffix`)?.value ?? "+",
+      icon: iconMap[s.key] ?? BookOpen,
+      href: hrefMap[s.key] ?? "/",
+    }));
+}
+
+export const Categories = ({ data }: { data: SiteSettingRow[] }) => {
   const sectionRef = useRef(null);
   const [startAnimation, setStartAnimation] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
+
+  const categories = parseCategories(data);
+
   const isInView = useInView(sectionRef, { 
     amount: 0.1,
-    once: true, // Only trigger once
+    once: true,
     margin: "0px 0px -100px 0px"
   });
 

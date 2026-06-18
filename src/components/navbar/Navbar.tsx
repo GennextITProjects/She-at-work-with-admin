@@ -13,6 +13,7 @@ const navLinks = [
   { name: "Blogs", href: "/blogs" },
   { name: "Entrechat", href: "/entrechat" },
   { name: "Events", href: "/events" },
+  {name: "SheDiaries",href:"/sheDiaries"}
 ];
 
 const aboutDropdownItems = [
