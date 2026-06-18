@@ -44,7 +44,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                   <div className="block lg:hidden relative w-full h-full">
                     <Image
                      
-                      src="/news/mobileBannernews.png"
+                      src="/shediaries/YTbannermobile.jpg"
                       
                       
                       alt="She Diaries"
@@ -56,7 +56,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                   </div>
                   <div className="hidden lg:block relative w-full h-full">
                     <Image
-                       src="/news/finalNewsbanner.png"
+                       src="/shediaries/YTbannerforwebsite.jpg"
                       alt="She Diaries"
                       fill
                       className="object-cover object-center"
@@ -66,7 +66,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                   </div>
                 </div>
       
-              <div className="relative z-10 h-full flex items-center">
+              {/* <div className="relative z-10 h-full flex items-center">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="max-w-3xl px-2 sm:px-6 lg:px-8 -mt-40 lg:mt-0">
                     <motion.div initial="hidden" animate="visible" variants={bannerVariants}>
@@ -84,7 +84,7 @@ export function PlaylistGrid({ playlists }: { playlists: any[] }) {
                     </motion.p>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </section>
 
       {/* ── PLAYLIST GRID ────────────────────────────────────────────────── */}
