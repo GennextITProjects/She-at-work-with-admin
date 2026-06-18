@@ -7,11 +7,13 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 const DESKTOP_IMAGES = [
-  "/home/Homebanner1.png",
-  "/home/revisedHomebanner2.png",
+  "/home/Homebanner1.png",  
+  // "/home/revisedHomebanner2.png",
 ];
 
-const MOBILE_IMAGES = ["/home/Mobile Home A.png", "/home/Mobile Home B (1).png"];
+const MOBILE_IMAGES = [
+  // "/home/Mobile Home A.png", 
+  "/home/Mobile Home B (1).png"];
 
 const HEADLINES = [
   {

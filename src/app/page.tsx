@@ -18,6 +18,7 @@ import { LatestBlogsCarousel } from "@/components/home/Latestblogscarousel";
 // ✅ NEW: Import direct DB utilities
 import { fetchPageContentMinimal } from "@/db/content";
 import { ProcessedStory } from "@/components/home/FeaturedNews";
+import { fetchSiteSettingsByGroup } from "@/lib/db/site-settings";
 
 export const revalidate = 1800;
 
@@ -60,10 +61,13 @@ export default async function Home() {
   // ✅ OPTIMIZATION 1: Direct DB queries in parallel
   // Previously: fetch("/api/content") → Vercel function → DB
   // Now: Direct DB access → no HTTP, no function, no extra wakeup
-  const [entrechatData, blogData] = await Promise.all([
+  const [entrechatData, blogData, heroStatsData, categoriesData] = await Promise.all([
     fetchPageContentMinimal("ENTRECHAT", 5),
     fetchPageContentMinimal("BLOG", 8),
+    fetchSiteSettingsByGroup("hero-stats"),
+    fetchSiteSettingsByGroup("categories"),
   ]);
+
 
   // ── Transform EntreChat data → ProcessedStory ──────────────────────────
   const stories: ProcessedStory[] = (entrechatData?.items ?? []).map((item) => ({
@@ -93,7 +97,7 @@ export default async function Home() {
     <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       <HeroSection />
-      <HeroStats />
+      <HeroStats data={heroStatsData} />
 
       {/* About — lazy loaded (framer-motion + useInView, below fold) */}
       <About />
@@ -102,7 +106,7 @@ export default async function Home() {
       {stories.length > 0 && <FeaturedStoriesCarousel stories={stories} />}
 
       {/* Categories — lazy loaded (animated counters, below fold) */}
-      <Categories />
+      <Categories data={categoriesData} />
 
       {/* Blogs carousel — data pre-fetched above, no client fetch needed */}
       {blogs.length > 0 && <LatestBlogsCarousel blogs={blogs} />}

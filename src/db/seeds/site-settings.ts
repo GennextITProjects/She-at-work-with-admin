@@ -1,8 +1,21 @@
 // db/seeds/site-settings.ts
-import { db } from "@/db";
-import { SiteSettingsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { SiteSettingsTable } from "../schema"; 
+import { sql } from "drizzle-orm";
 
+
+const connectionString = "postgresql://neondb_owner:npg_nAjQ0PiRF9Cw@ep-snowy-rain-a1xy2ngj-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+if (!connectionString) {
+  throw new Error("DATABASE_URL environment variable is not set");
+}
+
+const client = neon(connectionString);
+const db = drizzle(client);
+
+// ----------------------------------------------------------------
+// Seed data
+// ----------------------------------------------------------------
 const initialSettings = [
   // Hero Stats
   {
@@ -120,23 +133,23 @@ const initialSettings = [
   },
 ];
 
-export async function seedSiteSettings() {
+// ----------------------------------------------------------------
+// Seed function
+// ----------------------------------------------------------------
+async function seedSiteSettings() {
   console.log("🌱 Seeding site settings...");
-  
-  for (const setting of initialSettings) {
-    const existing = await db
-      .select()
-      .from(SiteSettingsTable)
-      .where(eq(SiteSettingsTable.key, setting.key))
-      .limit(1);
-    
-    if (existing.length === 0) {
-      await db.insert(SiteSettingsTable).values(setting);
-      console.log(`  ✅ Created ${setting.key}`);
-    } else {
-      console.log(`  ⏭️  Skipped ${setting.key} (already exists)`);
-    }
+
+  try {
+    const result = await db
+      .insert(SiteSettingsTable)
+      .values(initialSettings)
+      .onConflictDoNothing({ target: SiteSettingsTable.key });
+
+    console.log(`✅ Done! ${initialSettings.length} settings processed (existing ones were skipped).`);
+  } catch (error) {
+    console.error("❌ Seeding failed:", error);
+    process.exit(1);
   }
-  
-  console.log("✅ Site settings seeding complete!");
 }
+
+seedSiteSettings();
