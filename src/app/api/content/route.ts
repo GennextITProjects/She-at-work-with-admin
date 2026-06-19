@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
             )
           )
         )
-        .orderBy(desc(ContentTable.publishedAt))
+        .orderBy(desc(ContentTable.createdAt))
         .limit(50);
 
       return NextResponse.json({ results: rows }, { headers: SUGGESTIONS_HEADERS });
@@ -332,7 +332,7 @@ export async function GET(req: NextRequest) {
           eq(ContentTable.categoryId, CategoriesTable.id)
         )
         .where(and(...mainConditions))
-        .orderBy(desc(ContentTable.publishedAt))
+        .orderBy(desc(ContentTable.createdAt))
         .limit(limit)
         .offset(offset),
 
@@ -368,7 +368,7 @@ export async function GET(req: NextRequest) {
           eq(ContentTable.categoryId, CategoriesTable.id)
         )
         .where(and(...mainConditions))
-        .orderBy(desc(ContentTable.publishedAt))
+        .orderBy(desc(ContentTable.createdAt))
         .limit(limit)
         .offset(offset),
 
