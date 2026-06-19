@@ -23,6 +23,24 @@ function isEntreChat(item: BaseContentItem | EntreChatItem): item is EntreChatIt
 export function ContentCard({ item, href, index = 0, onTagClick }: Props) {
   const ec = isEntreChat(item) ? item : null;
 
+  // Helper to optimize Cloudinary URLs
+  const getOptimizedImageUrl = (url: string) => {
+    if (!url) return url;
+    
+    // If it's a Cloudinary URL, add optimization parameters
+    if (url.includes('res.cloudinary.com')) {
+      // Check if URL already has transformations
+      if (!url.includes('/upload/')) return url;
+      
+      const parts = url.split('/upload/');
+      if (parts.length === 2) {
+        // Add width, quality, and auto format
+        return `${parts[0]}/upload/w_640,q_auto,f_auto,c_fill/${parts[1]}`;
+      }
+    }
+    return url;
+  };
+
   return (
     <Link
       href={href}
@@ -32,12 +50,14 @@ export function ContentCard({ item, href, index = 0, onTagClick }: Props) {
       <div className="relative h-40 sm:h-44 bg-gradient-to-br from-muted to-secondary flex-shrink-0 overflow-hidden">
         {item.featuredImage ? (
           <Image
-            src={item.featuredImage}
+            src={getOptimizedImageUrl(item.featuredImage)}
             alt={item.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
             loading={index < 4 ? "eager" : "lazy"}
+            unoptimized={true}  // ← ADD THIS LINE
+            priority={index < 2} // Add priority for first 2 images
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent flex items-center justify-center">
@@ -48,7 +68,7 @@ export function ContentCard({ item, href, index = 0, onTagClick }: Props) {
         )}
       </div>
 
-      {/* Body */}
+      {/* Rest of your component remains the same */}
       <div className="p-4 sm:p-6 flex flex-col flex-grow">
         {/* Category + Reading time */}
         <div className="flex items-center justify-between mb-2 sm:mb-3">
