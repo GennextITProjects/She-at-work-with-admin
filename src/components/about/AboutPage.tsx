@@ -27,7 +27,7 @@ import { AnimatedText, ScrollFade, StaggerChildren } from "../common/ScrollFade"
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const stats = [
-  { value: "975+", label: "Articles & Resources" },
+  { value: "1988+", label: "Blogs" },
   { value: "121+", label: "Events & Webinars" },
   { value: "50k+", label: "Community Reach" },
   { value: "85+",  label: "Countries Reached" },
