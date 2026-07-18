@@ -147,7 +147,7 @@ export function ContentCard({ item, href, index = 0, onTagClick }: Props) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              {formatDate(item.publishedAt)}
+              {formatDate(item.createdAt)}
             </span>
             {ec?.state && (
               <span className="flex items-center gap-1">

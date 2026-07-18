@@ -26,6 +26,7 @@ export async function fetchInitialContent(
           categoryId:   ContentTable.categoryId,
           categoryName: CategoriesTable.name,
           categorySlug: CategoriesTable.slug,
+          createdAt:   ContentTable.createdAt,
         })
         .from(ContentTable)
         .leftJoin(CategoriesTable, eq(ContentTable.categoryId, CategoriesTable.id))
@@ -35,7 +36,7 @@ export async function fetchInitialContent(
             eq(ContentTable.status, "PUBLISHED"),
           ),
         )
-        .orderBy(desc(ContentTable.publishedAt))
+        .orderBy(desc(ContentTable.createdAt))
         .limit(limit),
 
       db
@@ -96,7 +97,7 @@ export async function fetchInitialContent(
       categories,
       readingTimes: [],
       suggestionCandidates: [], // initial load has no search active
-    } as BaseApiResponse;
+    } as unknown as BaseApiResponse;
   } catch (err) {
     console.error("[fetchInitialContent] Error:", err);
     return null;
