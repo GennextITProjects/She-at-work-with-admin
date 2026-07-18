@@ -74,7 +74,7 @@ export default async function Home() {
     id: item.id ?? "",
     title: (item.title ?? "").replace(/&amp;/g, "&"),
     description: extractExcerpt(item.summary, 100),
-    date: formatDate(item.publishedAt),
+    date: formatDate(item.createdAt),
     image: item.featuredImage?.trim() || "/placeholder-interview.jpg",
     slug: item.slug ?? "",
   }));
@@ -85,7 +85,7 @@ export default async function Home() {
     title: (item.title ?? "").replace(/&amp;/g, "&"),
     excerpt: extractExcerpt(item.summary, 110),
     category: item.categoryName ?? "General",
-    date: formatDate(item.publishedAt),
+    date: formatDate(item.createdAt),
     readTime: item.readingTime ? `${item.readingTime} min read` : "1 min read",
     image: item.featuredImage?.trim() || "/placeholder-blog.jpg",
     slug: item.slug ?? "",

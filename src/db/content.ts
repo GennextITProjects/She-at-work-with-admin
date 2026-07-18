@@ -36,6 +36,7 @@ export type ContentRow = {
   categoryName: string | null;
   categorySlug: string | null;
   tags?: Array<{ id: string; name: string; slug: string }>;
+  createdAt:string;
 };
 
 export type PageContentResponse = {
@@ -81,6 +82,7 @@ export async function fetchPageContent(
           categoryId: ContentTable.categoryId,
           categoryName: CategoriesTable.name,
           categorySlug: CategoriesTable.slug,
+          createdAt: ContentTable.createdAt,
         })
         .from(ContentTable)
         .leftJoin(
@@ -155,6 +157,7 @@ export async function fetchPageContent(
       items: rows.map((r) => ({
         ...r,
         tags: tagMap[r.id] ?? [],
+        createdAt: r.createdAt.toISOString(),
       })),
       totalItems,
       totalPages: Math.ceil(totalItems / limit),
@@ -202,6 +205,7 @@ export async function fetchPageContentMinimal(
         authorName: ContentTable.authorName,
         categoryName: CategoriesTable.name,
         readingTime: ContentTable.readingTime,
+        createdAt :ContentTable.createdAt
       })
       .from(ContentTable)
       .leftJoin(
@@ -214,10 +218,13 @@ export async function fetchPageContentMinimal(
           eq(ContentTable.status, "PUBLISHED")
         )
       )
-      .orderBy(desc(ContentTable.publishedAt))
+      .orderBy(desc(ContentTable.createdAt))
       .limit(limit);
 
-    return { items: rows };
+    return { items: rows.map((r) => ({
+      ...r,
+      createdAt: r.createdAt.toISOString(),
+    })) };
   } catch (err) {
     console.error(`[fetchPageContentMinimal] Error fetching ${contentType}:`, err);
     return { items: [] };

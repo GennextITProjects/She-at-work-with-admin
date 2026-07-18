@@ -499,7 +499,7 @@ export default function ContentModeration() {
                     {/* Date */}
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(item.publishedAt ?? item.createdAt)}
+                        {formatDate( item.createdAt)}
                       </span>
                     </td>
 

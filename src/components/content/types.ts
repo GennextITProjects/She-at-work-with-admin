@@ -19,6 +19,7 @@ export type BaseContentItem = {
   categoryName:  string | null;
   categorySlug:  string | null;
   tags:          ApiTag[];
+  createdAt:string;
 };
 
 export type NewsItem = BaseContentItem;
