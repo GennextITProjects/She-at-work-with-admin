@@ -15,6 +15,7 @@ import {
   fetchContentDetailFromDB,
 
 } from "@/components/content/fetchDetail";
+import { fetchSlugsByContentType } from "@/db/content";
 import { ShareBar } from "@/components/content/ShareBar";
 import { EventCTA } from "@/components/events/EventCTA";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -25,6 +26,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const revalidate = 1800;
+
+// Registers this dynamic segment for ISR. Without it Next.js renders the
+// route on demand for every request and caches nothing.
+export async function generateStaticParams() {
+  const slugs = await fetchSlugsByContentType("EVENT");
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }

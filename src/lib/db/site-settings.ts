@@ -1,6 +1,7 @@
 // lib/db/site-settings.ts
 // Add this function to your existing lib/db/content.ts or create a new file
 
+import { cache } from "react";
 import { db } from "@/db";
 import { SiteSettingsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,9 +13,9 @@ export type SiteSettingRow = {
   group: string;
 };
 
-export async function fetchSiteSettingsByGroup(
+export const fetchSiteSettingsByGroup = cache(async (
   group: string
-): Promise<SiteSettingRow[]> {
+): Promise<SiteSettingRow[]> => {
   try {
     const rows = await db
       .select({
@@ -32,4 +33,4 @@ export async function fetchSiteSettingsByGroup(
     console.error(`[fetchSiteSettingsByGroup] Error fetching group "${group}":`, err);
     return [];
   }
-}
+});

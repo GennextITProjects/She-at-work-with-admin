@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { SiteSettingsTable } from "@/db/schema";
 import { eq, and, count, ilike, or } from "drizzle-orm";
+import { revalidateSiteSettings } from "@/lib/revalidate";
 
 export async function GET(req: NextRequest) {
   try {
@@ -80,6 +81,8 @@ export async function POST(req: NextRequest) {
       .values({ key, value, label, group, isActive })
       .returning();
 
+    revalidateSiteSettings();
+
     return NextResponse.json({ success: true, data: newSetting });
   } catch (err) {
     console.error("[POST /admin/site-settings]", err);
@@ -119,6 +122,8 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    revalidateSiteSettings();
+
     return NextResponse.json({ success: true, data: updated });
   } catch (err) {
     console.error("[PATCH /admin/site-settings]", err);
@@ -149,6 +154,8 @@ export async function DELETE(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    revalidateSiteSettings();
 
     return NextResponse.json({ success: true, data: deleted });
   } catch (err) {

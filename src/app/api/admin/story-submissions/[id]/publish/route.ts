@@ -16,6 +16,7 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
 
 import { dbPool } from "@/db/index-pool";
+import { revalidateContent } from "@/lib/revalidate";
 import { ContentTable, StorySubmissionsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -120,6 +121,9 @@ export async function POST(req: NextRequest, { params }: Context) {
 
         return { submission: updated, content };
       });
+
+    // Push the newly published story to the live (cached) public pages.
+    revalidateContent(newContent.contentType, newContent.slug);
 
     return NextResponse.json(
       { success: true, data: { submission: updatedSubmission, content: newContent } },

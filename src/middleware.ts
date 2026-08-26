@@ -55,6 +55,7 @@ const PROTECTED_PREFIXES = [
   "/admin",
   "/account",
   "/api/admin",
+  "/api/superadmin",
   "/api/protected",
 ];
 

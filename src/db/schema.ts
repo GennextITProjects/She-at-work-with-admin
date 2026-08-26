@@ -81,6 +81,10 @@ export const UsersTable = pgTable(
     index("users_role_idx").on(table.role),
 
     index("users_active_idx").on(table.isActive),
+
+    // ORDER BY created_at DESC in /api/superadmin/recent-activity and
+    // WHERE created_at >= ... in /api/superadmin/analytics
+    index("users_created_at_idx").on(table.createdAt),
   ]
 );
 
@@ -270,6 +274,9 @@ export const ContentTable = pgTable(
     // ADDED: FK index for the LEFT JOIN to users (creator lookup)
     index("content_created_by_idx").on(table.createdBy),
 
+    // ORDER BY updated_at DESC in /api/superadmin/recent-activity
+    index("content_updated_at_idx").on(table.updatedAt),
+
     //////////////////////////////////////////////////////////
     // COMPOSITE INDEXES
     //////////////////////////////////////////////////////////
@@ -376,6 +383,14 @@ export const ResourcesTable = pgTable(
       table.scope,
       table.locationKey,
       table.isActive
+    ),
+
+    // ORDER BY location_label, title in GET /api/resources, and the
+    // SELECT DISTINCT location_key, location_label ... ORDER BY location_label
+    // that the meta=1 branch runs.
+    index("resources_location_label_title_idx").on(
+      table.locationLabel,
+      table.title
     ),
   ]
 );

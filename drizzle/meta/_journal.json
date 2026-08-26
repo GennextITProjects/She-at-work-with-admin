@@ -57,6 +57,13 @@
       "when": 1781769138354,
       "tag": "0008_fair_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787737182421,
+      "tag": "0009_careless_maverick",
+      "breakpoints": true
     }
   ]
 }
