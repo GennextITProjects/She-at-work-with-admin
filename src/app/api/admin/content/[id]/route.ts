@@ -3,6 +3,7 @@
 
 import { db } from "@/db";
 import { dbPool } from "@/db/index-pool";
+import { revalidateContent } from "@/lib/revalidate";
 import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable, UsersTable } from "@/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -133,13 +134,11 @@ export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: 
             }))
           );
 
-          // Increment usage count
-          for (const tagId of tagsToAdd) {
-            await tx
-              .update(TagsTable)
-              .set({ usageCount: sql`${TagsTable.usageCount} + 1` })
-              .where(eq(TagsTable.id, tagId));
-          }
+          // Single statement — see note in POST /api/admin/content.
+          await tx
+            .update(TagsTable)
+            .set({ usageCount: sql`${TagsTable.usageCount} + 1` })
+            .where(inArray(TagsTable.id, tagsToAdd as string[]));
         }
 
         // Remove old tags
@@ -153,18 +152,20 @@ export async function PATCH(req: NextRequest,  context: { params: Promise<{ id: 
               )
             );
 
-          // Decrement usage count
-          for (const tagId of tagsToRemove) {
-            await tx
-              .update(TagsTable)
-              .set({ usageCount: sql`${TagsTable.usageCount} - 1` })
-              .where(eq(TagsTable.id, tagId));
-          }
+          // Single statement. GREATEST(...,0) guards against a stale count
+          // going negative, which the per-row loop did not protect against.
+          await tx
+            .update(TagsTable)
+            .set({ usageCount: sql`greatest(${TagsTable.usageCount} - 1, 0)` })
+            .where(inArray(TagsTable.id, tagsToRemove as string[]));
         }
       }
 
       return updated;
     });
+
+    // Push the edit to the live (cached) public pages immediately.
+    revalidateContent(result.contentType, result.slug);
 
     return NextResponse.json({ success: true, data: result });
   } catch (err) {
@@ -182,11 +183,18 @@ export async function DELETE(_req: NextRequest,  context: { params: Promise<{ id
     const [deleted] = await dbPool
       .delete(ContentTable)
       .where(eq(ContentTable.id, id))
-      .returning({ id: ContentTable.id });
+      .returning({
+        id:          ContentTable.id,
+        slug:        ContentTable.slug,
+        contentType: ContentTable.contentType,
+      });
 
     if (!deleted) {
       return NextResponse.json({ success: false, error: "Content not found" }, { status: 404 });
     }
+
+    // Drop the deleted item from the live (cached) public pages immediately.
+    revalidateContent(deleted.contentType, deleted.slug);
 
     return NextResponse.json({ success: true, message: "Content deleted" });
   } catch (err) {

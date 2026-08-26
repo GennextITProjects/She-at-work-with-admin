@@ -47,6 +47,12 @@ export const authRoutes: string[] = [
 // ── Role-based protected routes ────────────────────────────────────────────
 // Pre-compiled regex → Role[] map. Compiled once at module load, not per-request.
 export const protectedRoutes: { pattern: RegExp; roles: Role[] }[] = [
-  { pattern: /^\/dashboard\/admin(\/.*)?$/, roles: ["ADMIN"] },
-  { pattern: /^\/dashboard\/user(\/.*)?$/,  roles: ["USER"] },
+  { pattern: /^\/dashboard\/admin(\/.*)?$/,      roles: ["ADMIN"] },
+  { pattern: /^\/dashboard\/user(\/.*)?$/,       roles: ["USER"] },
+  // SUPER_ADMIN surfaces. /api/superadmin/* previously matched nothing here and
+  // nothing in the middleware's PROTECTED_PREFIXES either, so it answered 200 to
+  // anonymous callers — including /api/superadmin/export (full users + content
+  // dump) and /api/superadmin/analytics (16 unbounded COUNT(*) queries).
+  { pattern: /^\/dashboard\/superadmin(\/.*)?$/, roles: ["SUPER_ADMIN"] },
+  { pattern: /^\/api\/superadmin(\/.*)?$/,       roles: ["SUPER_ADMIN"] },
 ];

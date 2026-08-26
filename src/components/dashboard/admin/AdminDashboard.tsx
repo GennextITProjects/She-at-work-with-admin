@@ -205,10 +205,12 @@ export default function AdminDashboard() {
     }
   };
 
+  // Fetch once on mount. The 2-minute setInterval that used to live here hit
+  // /api/admin/dashboard (7 uncached aggregate queries) forever for every open
+  // admin tab, which kept the Neon compute from ever autosuspending. Stats are
+  // refreshed manually via the button in the header instead.
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 120_000);
-    return () => clearInterval(interval);
   }, []);
 
   if (loading) {

@@ -1,5 +1,13 @@
 // app/api/superadmin/analytics/route.ts
-// SUPER_ADMIN: system-wide stats in a single request — all counts run in parallel
+// SUPER_ADMIN: system-wide stats in a single request.
+//
+// This used to fire 16 separate COUNT(*) queries (4 per table) in one
+// Promise.all. With neon-http that is 16 HTTP round-trips and 16 scans per
+// request — four of them unfiltered COUNT(*) over the whole table.
+//
+// Each table now needs exactly ONE pass, using conditional aggregates
+// (`count(*) FILTER (WHERE ...)`), which Postgres evaluates alongside the
+// total in the same scan. Same response shape, 4 queries instead of 16.
 
 import { db } from "@/db";
 import {
@@ -8,113 +16,87 @@ import {
   StorySubmissionsTable,
   UsersTable,
 } from "@/db/schema";
-import { count, eq, gte, sql } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+
+/** Postgres returns bigint aggregates as strings — normalise to a number. */
+const n = (v: unknown): number => Number(v ?? 0);
 
 export async function GET() {
   try {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [
-      // ── Users ──────────────────────────────────────────────────────────────
-      [{ totalUsers }],
-      [{ activeUsers }],
-      [{ adminCount }],
-      [{ newUsersThisMonth }],
+    const [[userStats], [contentStats], [storyStats], [contactStats]] =
+      await Promise.all([
+        // ── Users: one scan ──────────────────────────────────────────────────
+        db
+          .select({
+            total:  count(),
+            active: sql<number>`count(*) filter (where ${UsersTable.isActive} = true)`,
+            admins: sql<number>`count(*) filter (where ${UsersTable.role} in ('ADMIN', 'SUPER_ADMIN'))`,
+            newThisMonth: sql<number>`count(*) filter (where ${UsersTable.createdAt} >= ${thirtyDaysAgo})`,
+          })
+          .from(UsersTable),
 
-      // ── Content ────────────────────────────────────────────────────────────
-      [{ totalContent }],
-      [{ publishedContent }],
-      [{ pendingContent }],
-      [{ draftContent }],
+        // ── Content: one scan ────────────────────────────────────────────────
+        db
+          .select({
+            total:     count(),
+            published: sql<number>`count(*) filter (where ${ContentTable.status} = 'PUBLISHED')`,
+            pending:   sql<number>`count(*) filter (where ${ContentTable.status} = 'PENDING')`,
+            draft:     sql<number>`count(*) filter (where ${ContentTable.status} = 'DRAFT')`,
+          })
+          .from(ContentTable),
 
-      // ── Story Submissions ──────────────────────────────────────────────────
-      [{ totalStories }],
-      [{ pendingStories }],
-      [{ publishedStories }],
-      [{ rejectedStories }],
+        // ── Story submissions: one scan ──────────────────────────────────────
+        db
+          .select({
+            total:     count(),
+            pending:   sql<number>`count(*) filter (where ${StorySubmissionsTable.status} = 'PENDING')`,
+            published: sql<number>`count(*) filter (where ${StorySubmissionsTable.status} = 'PUBLISHED')`,
+            rejected:  sql<number>`count(*) filter (where ${StorySubmissionsTable.status} = 'REJECTED')`,
+          })
+          .from(StorySubmissionsTable),
 
-      // ── Contact Submissions ────────────────────────────────────────────────
-      [{ totalContacts }],
-      [{ unresolvedContacts }],
-      [{ resolvedContacts }],
-      [{ newContactsThisMonth }],
-    ] = await Promise.all([
-      // Users
-      db.select({ totalUsers: count() }).from(UsersTable),
-      db.select({ activeUsers: count() }).from(UsersTable).where(eq(UsersTable.isActive, true)),
-      db.select({ adminCount: count() }).from(UsersTable).where(
-        sql`${UsersTable.role} IN ('ADMIN', 'SUPER_ADMIN')`
-      ),
-      db.select({ newUsersThisMonth: count() }).from(UsersTable).where(
-        gte(UsersTable.createdAt, thirtyDaysAgo)
-      ),
-
-      // Content
-      db.select({ totalContent: count() }).from(ContentTable),
-      db.select({ publishedContent: count() }).from(ContentTable).where(
-        eq(ContentTable.status, "PUBLISHED")
-      ),
-      db.select({ pendingContent: count() }).from(ContentTable).where(
-        eq(ContentTable.status, "PENDING")
-      ),
-      db.select({ draftContent: count() }).from(ContentTable).where(
-        eq(ContentTable.status, "DRAFT")
-      ),
-
-      // Story submissions
-      db.select({ totalStories: count() }).from(StorySubmissionsTable),
-      db.select({ pendingStories: count() }).from(StorySubmissionsTable).where(
-        eq(StorySubmissionsTable.status, "PENDING")
-      ),
-      db.select({ publishedStories: count() }).from(StorySubmissionsTable).where(
-        eq(StorySubmissionsTable.status, "PUBLISHED")
-      ),
-      db.select({ rejectedStories: count() }).from(StorySubmissionsTable).where(
-        eq(StorySubmissionsTable.status, "REJECTED")
-      ),
-
-      // Contact submissions
-      db.select({ totalContacts: count() }).from(ContactSubmissionsTable),
-      db.select({ unresolvedContacts: count() }).from(ContactSubmissionsTable).where(
-        eq(ContactSubmissionsTable.isResolved, false)
-      ),
-      db.select({ resolvedContacts: count() }).from(ContactSubmissionsTable).where(
-        eq(ContactSubmissionsTable.isResolved, true)
-      ),
-      db.select({ newContactsThisMonth: count() }).from(ContactSubmissionsTable).where(
-        gte(ContactSubmissionsTable.submittedAt, thirtyDaysAgo)
-      ),
-    ]);
+        // ── Contact submissions: one scan ────────────────────────────────────
+        db
+          .select({
+            total:      count(),
+            unresolved: sql<number>`count(*) filter (where ${ContactSubmissionsTable.isResolved} = false)`,
+            resolved:   sql<number>`count(*) filter (where ${ContactSubmissionsTable.isResolved} = true)`,
+            newThisMonth: sql<number>`count(*) filter (where ${ContactSubmissionsTable.submittedAt} >= ${thirtyDaysAgo})`,
+          })
+          .from(ContactSubmissionsTable),
+      ]);
 
     return NextResponse.json({
       success: true,
       data: {
         users: {
-          total:          Number(totalUsers),
-          active:         Number(activeUsers),
-          inactive:       Number(totalUsers) - Number(activeUsers),
-          admins:         Number(adminCount),
-          newThisMonth:   Number(newUsersThisMonth),
+          total:        n(userStats.total),
+          active:       n(userStats.active),
+          inactive:     n(userStats.total) - n(userStats.active),
+          admins:       n(userStats.admins),
+          newThisMonth: n(userStats.newThisMonth),
         },
         content: {
-          total:     Number(totalContent),
-          published: Number(publishedContent),
-          pending:   Number(pendingContent),
-          draft:     Number(draftContent),
+          total:     n(contentStats.total),
+          published: n(contentStats.published),
+          pending:   n(contentStats.pending),
+          draft:     n(contentStats.draft),
         },
         stories: {
-          total:     Number(totalStories),
-          pending:   Number(pendingStories),
-          published: Number(publishedStories),
-          rejected:  Number(rejectedStories),
+          total:     n(storyStats.total),
+          pending:   n(storyStats.pending),
+          published: n(storyStats.published),
+          rejected:  n(storyStats.rejected),
         },
         contacts: {
-          total:          Number(totalContacts),
-          unresolved:     Number(unresolvedContacts),
-          resolved:       Number(resolvedContacts),
-          newThisMonth:   Number(newContactsThisMonth),
+          total:        n(contactStats.total),
+          unresolved:   n(contactStats.unresolved),
+          resolved:     n(contactStats.resolved),
+          newThisMonth: n(contactStats.newThisMonth),
         },
       },
     });

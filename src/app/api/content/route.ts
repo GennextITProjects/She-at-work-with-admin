@@ -34,7 +34,6 @@ export const revalidate = 1800;
 export const preferredRegion = "sin1";
 export const runtime = "nodejs";
 
-export const dynamic = 'force-dynamic'; 
 
 // ... [rest of type definitions remain the same] ...
 
@@ -323,30 +322,11 @@ export async function GET(req: NextRequest) {
     const dbQueryStart = Date.now();
     const cachedMeta = getMetaFromCache(contentType);
 
-    const [idRows, countResult, meta] = await Promise.all([
-      db
-        .select({ id: ContentTable.id })
-        .from(ContentTable)
-        .leftJoin(
-          CategoriesTable,
-          eq(ContentTable.categoryId, CategoriesTable.id)
-        )
-        .where(and(...mainConditions))
-        .orderBy(desc(ContentTable.createdAt))
-        .limit(limit)
-        .offset(offset),
-
-      db
-        .select({ total: count() })
-        .from(ContentTable)
-        .where(and(...countConditions)),
-
-      cachedMeta ? Promise.resolve(cachedMeta) : fetchMeta(contentType),
-    ]);
-
-    const contentIds = idRows.map((r) => r.id);
-
-    const [rows, tagRows] = await Promise.all([
+    // NOTE: this used to run an extra `select({ id })` query with the exact
+    // same join/where/order/limit/offset purely to collect contentIds for the
+    // tag lookup. `rows.map(r => r.id)` gives the same list for free, so that
+    // query (and the serial round-trip it forced) is gone.
+    const [rows, countResult, meta] = await Promise.all([
       db
         .select({
           id: ContentTable.id,
@@ -372,8 +352,19 @@ export async function GET(req: NextRequest) {
         .limit(limit)
         .offset(offset),
 
+      db
+        .select({ total: count() })
+        .from(ContentTable)
+        .where(and(...countConditions)),
+
+      cachedMeta ? Promise.resolve(cachedMeta) : fetchMeta(contentType),
+    ]);
+
+    const contentIds = rows.map((r) => r.id);
+
+    const tagRows =
       contentIds.length > 0
-        ? db
+        ? await db
             .select({
               contentId: ContentTagsTable.contentId,
               tagId: TagsTable.id,
@@ -383,8 +374,7 @@ export async function GET(req: NextRequest) {
             .from(ContentTagsTable)
             .innerJoin(TagsTable, eq(ContentTagsTable.tagId, TagsTable.id))
             .where(inArray(ContentTagsTable.contentId, contentIds))
-        : Promise.resolve([]),
-    ]);
+        : [];
 
     const dbQueryTime = Date.now() - dbQueryStart;
     const metaSource = cachedMeta ? "cache" : "database";

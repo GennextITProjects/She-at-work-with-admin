@@ -3,8 +3,9 @@
 /*eslint-disable  @typescript-eslint/no-explicit-any*/
 import { db } from "@/db";
 import { dbPool } from "@/db/index-pool";
+import { revalidateContent } from "@/lib/revalidate";
 import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable, UsersTable } from "@/db/schema";
-import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 function toSlug(text: string): string {
@@ -150,18 +151,20 @@ export async function POST(req: NextRequest) {
           }))
         );
 
-        // Increment usage count for each tag — done individually so the
-        // update is scoped per tag ID (avoids bulk-update race conditions)
-        for (const tagId of tags) {
-          await tx
-            .update(TagsTable)
-            .set({ usageCount: sql`${TagsTable.usageCount} + 1` })
-            .where(eq(TagsTable.id, tagId));
-        }
+        // One statement instead of one UPDATE per tag. `usage_count + 1` is
+        // evaluated per row under that row's lock, so this is exactly as
+        // race-safe as the old loop — it just costs a single round-trip.
+        await tx
+          .update(TagsTable)
+          .set({ usageCount: sql`${TagsTable.usageCount} + 1` })
+          .where(inArray(TagsTable.id, tags as string[]));
       }
 
       return newContent;
     });
+
+    // Push the new content to the live (cached) public pages immediately.
+    revalidateContent(result.contentType, result.slug);
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (err: any) {
