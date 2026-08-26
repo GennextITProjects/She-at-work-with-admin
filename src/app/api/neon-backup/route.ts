@@ -102,7 +102,18 @@ async function deleteOldBranch() {
   console.log("🗑 Old backup deleted");
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Without this gate
+  // anyone hitting the URL creates a Neon branch — and every branch runs its
+  // own separately-billed compute endpoint.
+  const cronSecret = process.env.CRON_SECRET;
+  if (
+    cronSecret &&
+    req.headers.get("authorization") !== `Bearer ${cronSecret}`
+  ) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     console.log("📦 Neon backup cron started");
 

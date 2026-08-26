@@ -1,15 +1,18 @@
 // components/content/fetchContent.ts
 // Server component calls DB directly — no HTTP self-fetch.
 
+import { cache } from "react";
 import { db } from "@/db";
 import { CategoriesTable, ContentTable, ContentTagsTable, TagsTable } from "@/db/schema";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import type { BaseApiResponse, ContentType, EntreChatApiResponse } from "./types";
 
-export async function fetchInitialContent(
+// cache() dedupes this within a single render pass (e.g. if a page and its
+// generateMetadata both ask for the same listing).
+export const fetchInitialContent = cache(async (
   contentType: ContentType,
   limit = 12,
-): Promise<BaseApiResponse | EntreChatApiResponse | null> {
+): Promise<BaseApiResponse | EntreChatApiResponse | null> => {
   try {
     const [rows, [{ total }], categories] = await Promise.all([
       db
@@ -102,4 +105,4 @@ export async function fetchInitialContent(
     console.error("[fetchInitialContent] Error:", err);
     return null;
   }
-}
+});

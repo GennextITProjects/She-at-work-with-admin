@@ -4,6 +4,7 @@
 // Used by Server Components to avoid HTTP roundtrip + Vercel function overhead.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { cache } from "react";
 import { db } from "@/db";
 import {
   ContentTable,
@@ -60,10 +61,10 @@ export type PageContentResponse = {
  * @param limit - Number of items to return
  * @returns Page content with items, metadata, and tags
  */
-export async function fetchPageContent(
+export const fetchPageContent = cache(async (
   contentType: ContentType,
   limit: number = 12,
-): Promise<PageContentResponse> {
+): Promise<PageContentResponse> => {
   try {
     // Parallel fetch: rows + count + categories all at once
     const [rows, countResult, categories] = await Promise.all([
@@ -176,7 +177,7 @@ export async function fetchPageContent(
       readingTimes: [],
     };
   }
-}
+});
 
 /**
  * Lightweight fetch for homepage carousels.
@@ -189,10 +190,10 @@ export async function fetchPageContent(
  * @param limit - Number of items to return (default 5)
  * @returns Array of content items with minimal fields
  */
-export async function fetchPageContentMinimal(
+export const fetchPageContentMinimal = cache(async (
   contentType: ContentType,
   limit: number = 5,
-): Promise<{ items: Partial<ContentRow>[] }> {
+): Promise<{ items: Partial<ContentRow>[] }> => {
   try {
     const rows = await db
       .select({
@@ -228,5 +229,43 @@ export async function fetchPageContentMinimal(
   } catch (err) {
     console.error(`[fetchPageContentMinimal] Error fetching ${contentType}:`, err);
     return { items: [] };
+  }
+});
+/**
+ * Slugs for a content type, newest first — feeds `generateStaticParams`.
+ *
+ * Without a `generateStaticParams` export, Next.js does not register a dynamic
+ * segment for ISR at all: the route is marked `ƒ` and server-rendered on every
+ * request, so each article view would keep hitting Neon. Exporting it (even
+ * with a bounded list) registers the route with a blocking fallback, so slugs
+ * outside the list are still generated once on first request and then cached.
+ *
+ * Bounded deliberately: prerendering every article would make each deploy issue
+ * thousands of queries for little benefit. Recent posts get prebuilt; the long
+ * tail is cached on first view.
+ */
+export async function fetchSlugsByContentType(
+  contentType: ContentType,
+  limit: number = 100,
+): Promise<string[]> {
+  try {
+    const rows = await db
+      .select({ slug: ContentTable.slug })
+      .from(ContentTable)
+      .where(
+        and(
+          eq(ContentTable.contentType, contentType),
+          eq(ContentTable.status, "PUBLISHED"),
+        ),
+      )
+      .orderBy(desc(ContentTable.createdAt))
+      .limit(limit);
+
+    return rows.map((r) => r.slug).filter(Boolean);
+  } catch (err) {
+    console.error(`[fetchSlugsByContentType] ${contentType}:`, err);
+    // Empty list still registers the route for ISR — everything renders on
+    // demand once, then caches. Never fail the build over this.
+    return [];
   }
 }

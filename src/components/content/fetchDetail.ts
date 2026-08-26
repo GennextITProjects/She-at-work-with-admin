@@ -1,4 +1,5 @@
 // components/content/fetchDetail.ts
+import { cache } from "react";
 import { db } from "@/db";
 import {
   CategoriesTable,
@@ -77,7 +78,11 @@ function toISOStringOrNull(date: Date | string | null): string | null {
 // DIRECT DB FETCH
 // ============================================
 
-export async function fetchContentDetailFromDB(slug: string): Promise<DetailResponse | null> {
+// Wrapped in React cache() so the call in generateMetadata and the call in the
+// page body share one result per render. Without this every [slug] page ran
+// these ~4 queries twice.
+export const fetchContentDetailFromDB = cache(
+  async (slug: string): Promise<DetailResponse | null> => {
   try {
     // ── 1. Fetch main content item ──────────────────────────────────────────
     const [item] = await db
@@ -187,7 +192,8 @@ export async function fetchContentDetailFromDB(slug: string): Promise<DetailResp
     console.error("[fetchContentDetailFromDB]", error);
     return null;
   }
-}
+  }
+);
 
 // ============================================
 // HELPER FUNCTIONS

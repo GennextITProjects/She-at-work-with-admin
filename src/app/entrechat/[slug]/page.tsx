@@ -8,6 +8,7 @@
 //            interviewee highlight card, getCategoryIcon, all EntreChat-specific fields
 
 import { fetchContentDetailFromDB, formatDate } from "@/components/content/fetchDetail";
+import { fetchSlugsByContentType } from "@/db/content";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -23,6 +24,13 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 export const revalidate = 1800;
+
+// Registers this dynamic segment for ISR. Without it Next.js renders the
+// route on demand for every request and caches nothing.
+export async function generateStaticParams() {
+  const slugs = await fetchSlugsByContentType("ENTRECHAT");
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }

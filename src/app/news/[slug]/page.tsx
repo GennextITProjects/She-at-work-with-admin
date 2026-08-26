@@ -7,6 +7,7 @@
 //   KEPT     All JSX, processNewsContent, source badge, getCategoryIcon import
 
 import {  fetchContentDetailFromDB, formatDate } from "@/components/content/fetchDetail";
+import { fetchSlugsByContentType } from "@/db/content";
 
 import { ShareBar } from "@/components/content/ShareBar";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -19,6 +20,13 @@ import type { Metadata } from "next";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 
 export const revalidate = 1800;
+
+// Registers this dynamic segment for ISR. Without it Next.js renders the
+// route on demand for every request and caches nothing.
+export async function generateStaticParams() {
+  const slugs = await fetchSlugsByContentType("NEWS");
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
