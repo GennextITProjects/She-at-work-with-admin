@@ -4,6 +4,40 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["jsdom"],
 
+  // Legacy WordPress paths that map to a fixed destination and therefore need
+  // no database lookup. Article permalinks are handled separately by
+  // app/[legacySlug]/page.tsx, which has to resolve the slug against `content`.
+  //
+  // These are matched at the edge before any function runs, so scanner traffic
+  // hitting /author/* costs nothing.
+  async redirects() {
+    return [
+      {
+        // Old scheme browser lived at /global-schemes/<country>.
+        source: "/global-schemes/:path*",
+        destination: "/gettingstarted/global-schemes",
+        permanent: true,
+      },
+      {
+        // WordPress author archives — no equivalent page exists.
+        source: "/author/:path*",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        // WordPress category/tag archives map onto the blogs filter.
+        source: "/category/:path*",
+        destination: "/blogs",
+        permanent: true,
+      },
+      {
+        source: "/tag/:path*",
+        destination: "/blogs",
+        permanent: true,
+      },
+    ];
+  },
+
   // Force Vercel's CDN to cache content API responses.
   // Without this, Vercel ignores Cache-Control headers set inside route handlers
   // for dynamic routes. This config applies them at the infrastructure level.

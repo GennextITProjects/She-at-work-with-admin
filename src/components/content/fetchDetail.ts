@@ -189,8 +189,14 @@ export const fetchContentDetailFromDB = cache(
     };
 
   } catch (error) {
+    // Do NOT swallow this into `null`. The detail pages are cached with
+    // `revalidate = false`, so a `null` return would render notFound() and
+    // Next.js would persist that 404 in the ISR cache permanently — a 2-second
+    // Neon blip would take an article offline until the next deploy.
+    // Throwing makes the render fail, which Next.js does not cache: the next
+    // request retries against the database.
     console.error("[fetchContentDetailFromDB]", error);
-    return null;
+    throw error;
   }
   }
 );

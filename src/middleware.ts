@@ -59,6 +59,21 @@ const PROTECTED_PREFIXES = [
   "/api/protected",
 ];
 
+/**
+ * Prefix match on whole path SEGMENTS.
+ *
+ * A plain `pathname.startsWith("/admin")` also matches `/administrator`, which
+ * is exactly what Joomla and WordPress vulnerability scanners probe. Production
+ * logs showed those probes being answered with
+ * `307 → /auth/login?callbackUrl=%2Fadministrator`: two requests instead of one,
+ * and a free confirmation to the scanner that a login page exists.
+ *
+ * `/administrator` now fails this test, falls through, and gets a flat 404.
+ */
+function matchesPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -66,7 +81,9 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith(apiAuthPrefix)) return NextResponse.next();
 
   // ── 2. Always allow public APIs (no auth needed) ──────────────────────────
-  if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix)))
+  //    Segment-aware for the same reason as PROTECTED_PREFIXES below: a bare
+  //    startsWith would let `/api/contentXYZ` inherit `/api/content`'s exemption.
+  if (publicApiPrefixes.some((prefix) => matchesPrefix(pathname, prefix)))
     return NextResponse.next();
 
   // ── 3. Allow public pages (single regex test, pre-compiled) ───────────────
@@ -99,7 +116,7 @@ export async function middleware(req: NextRequest) {
   //    fall through to Next.js which renders the not-found page → home.
   if (!isLoggedIn) {
     const isProtectedPath = PROTECTED_PREFIXES.some((prefix) =>
-      pathname.startsWith(prefix)
+      matchesPrefix(pathname, prefix)
     );
 
     if (isProtectedPath) {

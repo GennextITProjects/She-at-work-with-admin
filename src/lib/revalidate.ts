@@ -21,7 +21,7 @@ const LISTING_ROUTES: Record<string, string[]> = {
 };
 
 /** contentType → route prefixes under which a `[slug]` detail page lives. */
-const DETAIL_PREFIXES: Record<string, string[]> = {
+export const DETAIL_PREFIXES: Record<string, string[]> = {
   BLOG:          ["/blogs"],
   NEWS:          ["/news"],
   EVENT:         ["/events"],
@@ -41,6 +41,14 @@ export function revalidateContent(contentType?: string | null, slug?: string | n
   // The home page pulls BLOG + ENTRECHAT carousels and site settings.
   revalidatePath("/");
 
+  // Clear the legacy-permalink lookup cache (app/[legacySlug]/page.tsx). Those
+  // pages use `revalidate = false`, so a miss is cached as a permanent 404 — if
+  // a crawler probed a root-level slug before the article existed, publishing it
+  // would otherwise never fix that URL. Publishes are rare, so re-resolving the
+  // handful of cached redirects afterwards costs almost nothing.
+  revalidatePath("/[legacySlug]", "page");
+  revalidatePath("/blog/[legacySlug]", "page");
+
   if (!contentType) return;
 
   for (const route of LISTING_ROUTES[contentType] ?? []) {
@@ -57,4 +65,37 @@ export function revalidateContent(contentType?: string | null, slug?: string | n
 /** Invalidate pages driven by site settings (home page hero stats / categories). */
 export function revalidateSiteSettings() {
   revalidatePath("/");
+}
+
+/**
+ * Invalidate everything a category write touches.
+ *
+ * Categories are rendered in two places: the filter panel on every listing
+ * page, and the category chip on every detail page. Detail pages are cached
+ * with `export const revalidate = false`, so without this a renamed or
+ * deactivated category would stay visible until the next deploy.
+ *
+ * `revalidatePath(route, "page")` on a dynamic segment invalidates every cached
+ * page under it in one call — there is no need to enumerate slugs.
+ *
+ * @param contentType content_type of the written category; when omitted every
+ *                    public content route is invalidated (e.g. on delete, where
+ *                    the row's type may no longer be readable).
+ */
+export function revalidateCategories(contentType?: string | null) {
+  revalidatePath("/");
+
+  const types = contentType
+    ? [contentType]
+    : Object.keys(LISTING_ROUTES);
+
+  for (const type of types) {
+    for (const route of LISTING_ROUTES[type] ?? []) {
+      revalidatePath(route);
+    }
+    for (const prefix of DETAIL_PREFIXES[type] ?? []) {
+      // Dynamic segment — invalidates all cached slugs under this prefix.
+      revalidatePath(`${prefix}/[slug]`, "page");
+    }
+  }
 }
