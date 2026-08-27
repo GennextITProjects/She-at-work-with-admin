@@ -7,6 +7,7 @@ import { dbPool } from "@/db/index-pool";
 import { CategoriesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateCategories } from "@/lib/revalidate";
 
 function toSlug(text: string): string {
   return text
@@ -94,6 +95,8 @@ export async function PATCH(
       );
     }
 
+    revalidateCategories(updated.contentType);
+
     return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
     // Catch Postgres unique-violation (slug + contentType collision on rename)
@@ -129,7 +132,10 @@ export async function DELETE(
       .update(CategoriesTable)
       .set({ isActive: false })
       .where(eq(CategoriesTable.id, id))
-      .returning({ id: CategoriesTable.id });
+      .returning({
+        id: CategoriesTable.id,
+        contentType: CategoriesTable.contentType,
+      });
 
     if (!updated) {
       return NextResponse.json(
@@ -137,6 +143,8 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    revalidateCategories(updated.contentType);
 
     return NextResponse.json({ success: true, message: "Category deactivated" });
   } catch (err) {

@@ -19,7 +19,7 @@ import {
   Youtube
 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const faqs = [
   {
@@ -111,6 +111,22 @@ export default function ContactPage() {
   const [captcha, setCaptcha] = useState("");
   const [userCaptcha, setUserCaptcha] = useState("");
   const [captchaError, setCaptchaError] = useState("");
+
+  // ── Bot signals, checked server-side in /api/contact-submissions ───────────
+  // The captcha above never leaves the browser: the request body just carries
+  // `captchaVerified: true`, so anything posting straight to the endpoint skips
+  // it. These two fields give the server something to check.
+  //
+  // Honeypot: hidden from real users, so any value means an auto-filler.
+  const [honeypot, setHoneypot] = useState("");
+
+  // Mount time, recorded in an effect rather than during render — the page is
+  // statically cached, so a render-time timestamp would be the build time, not
+  // the visitor's.
+  const renderedAtRef = useRef<number>(0);
+  useEffect(() => {
+    renderedAtRef.current = Date.now();
+  }, []);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -179,6 +195,8 @@ export default function ContactPage() {
         body: JSON.stringify({
           ...formData,
           captchaVerified: true,
+          _hp: honeypot,
+          _ts: renderedAtRef.current,
         }),
       });
 
@@ -500,6 +518,31 @@ export default function ContactPage() {
                     required
                   />
                 </motion.div>
+
+                {/*
+                  HONEYPOT — must stay in the DOM and must stay empty.
+                  Positioned off-screen rather than display:none, because a
+                  number of form-filling bots skip hidden inputs but not
+                  off-screen ones. aria-hidden + tabIndex=-1 keep it away from
+                  screen readers and keyboard navigation.
+                */}
+                <div
+                  aria-hidden="true"
+                  className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden"
+                >
+                  <label htmlFor="company-website">
+                    Leave this field empty
+                  </label>
+                  <input
+                    id="company-website"
+                    name="company-website"
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                  />
+                </div>
 
                 {/* CAPTCHA FIELD */}
                 <motion.div variants={fadeInUp} className="space-y-2">

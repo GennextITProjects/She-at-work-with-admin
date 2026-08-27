@@ -14,6 +14,28 @@ const MAX_NAME      = 200;
 const MAX_SUBJECT   = 300;
 const MAX_MESSAGE   = 10_000;
 
+/** Fastest a human can plausibly render the form and finish typing a message. */
+const MIN_FILL_MS = 3_000;
+
+/**
+ * Two cheap bot signals, both evaluated before any database or SMTP work.
+ *
+ *   _hp  honeypot — a field hidden from real users. Anything that fills it is
+ *        auto-filling every input it can find.
+ *   _ts  the millisecond timestamp at which the form component mounted. A
+ *        submission arriving less than MIN_FILL_MS later was not typed, and a
+ *        missing or unparseable value means the request did not come from the
+ *        form at all.
+ */
+function isLikelyBot(body: any): boolean {
+  if (typeof body?._hp === "string" && body._hp.trim() !== "") return true;
+
+  const renderedAt = Number(body?._ts);
+  if (!Number.isFinite(renderedAt)) return true;
+
+  return Date.now() - renderedAt < MIN_FILL_MS;
+}
+
 // ─── Email configuration ────────────────────────────────────────────────────────
 
 // Create transporter
@@ -211,6 +233,29 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, email, phone, subject, message } = body;
+
+    // ── Bot filter ────────────────────────────────────────────────────────────
+    // Runs BEFORE the database insert and before either SMTP send, because this
+    // route is the one anonymous path that no amount of caching can protect:
+    // every accepted POST writes a row and therefore wakes the Neon compute.
+    //
+    // The captcha in components/contactPage/Contact.tsx is generated and checked
+    // entirely in the browser — the request body just carries
+    // `captchaVerified: true`, which anything posting directly to this endpoint
+    // can set. Access logs showed exactly that: two POSTs, each preceded by the
+    // same crawl (`/author/admin` → `/` → `/blogs` → `/contact`).
+    //
+    // Both signals below are client-supplied and so are defeatable by a
+    // determined scraper. They stop commodity form spam; sustained abuse needs
+    // the Vercel Firewall rate-limit rule described in docs/neon-cu-runbook.md.
+    if (isLikelyBot(body)) {
+      // Answer as if it succeeded. A bot that receives an error learns which
+      // field gave it away and adapts; one that receives success does not retry.
+      return NextResponse.json(
+        { success: true, message: "Thank you for contacting us!" },
+        { status: 200 }
+      );
+    }
 
     // ── Required field presence ───────────────────────────────────────────────
     if (!name?.trim() || !email?.trim() || !message?.trim()) {

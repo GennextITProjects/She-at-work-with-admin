@@ -19,7 +19,19 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCategoryIcon } from "@/components/content/categoryIcons";
 
-export const revalidate = 1800;
+// NEON CU: cache indefinitely — do NOT put a time on this.
+//
+// Neon bills for wall-clock time the compute is awake and only suspends after
+// ~5 minutes with zero queries. With ~1900 published articles, ANY finite
+// revalidate turns crawler traffic into a steady drip of background
+// regenerations (1900 pages / 86400s = one DB query every ~45s even at a
+// 24-hour TTL), so the compute never reaches an idle 5-minute window.
+//
+// `false` is safe here because every write path already pushes an on-demand
+// invalidation: revalidateContent() in lib/revalidate.ts is called from
+// POST/PATCH/DELETE /api/admin/content and the story-submission publish route.
+// Edits still go live instantly; nothing regenerates on a timer.
+export const revalidate = false;
 
 // Registers this dynamic segment for ISR. Without it Next.js renders the
 // route on demand for every request and caches nothing.

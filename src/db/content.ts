@@ -228,7 +228,12 @@ export const fetchPageContentMinimal = cache(async (
     })) };
   } catch (err) {
     console.error(`[fetchPageContentMinimal] Error fetching ${contentType}:`, err);
-    return { items: [] };
+    // Rethrow instead of returning an empty result. Public pages are now cached
+    // with a long/indefinite `revalidate` (on-demand invalidation in
+    // lib/revalidate.ts pushes real updates), so an empty-on-error return would
+    // be written into the ISR cache and served as a permanently blank page.
+    // A thrown error is not cached — the next request retries the database.
+    throw err;
   }
 });
 /**

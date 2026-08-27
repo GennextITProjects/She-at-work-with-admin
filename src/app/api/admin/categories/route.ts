@@ -8,6 +8,7 @@ import { dbPool } from "@/db/index-pool";
 import { CategoriesTable } from "@/db/schema";
 import { and, asc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateCategories } from "@/lib/revalidate";
 
 function toSlug(text: string): string {
   return text
@@ -103,6 +104,12 @@ export async function POST(req: NextRequest) {
         isActive:    true,
       })
       .returning();
+
+    // Categories drive the filter panel on every listing page and the category
+    // chip on every detail page. Detail pages are cached with
+    // `revalidate = false`, so this invalidation is what makes the change
+    // visible at all.
+    revalidateCategories(category.contentType);
 
     return NextResponse.json({ success: true, data: category }, { status: 201 });
   } catch (err: any) {

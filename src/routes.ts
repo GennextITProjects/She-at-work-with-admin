@@ -23,7 +23,13 @@ export const apiAuthPrefix          = "/api/auth";
 //   /contact
 //   /share-your-story
 //   /gettingstarted, /gettingstarted/*
-export const publicRoutePattern = /^(\/|\/auth\/verify-email|\/about(\/.*)?|\/news(\/.*)?|\/blogs(\/.*)?|\/entrechat(\/.*)?|\/events(\/.*)?|\/contact|\/share-your-story|\/gettingstarted(\/.*)?)$/;
+//   /sheDiaries, /sheDiaries/*
+//   /press/*
+//
+// NOTE on /sheDiaries: it was missing from this pattern, so ~19% of production
+// traffic fell through to the getToken() JWT verification in the middleware
+// before being waved through anyway. Listing it here short-circuits at step 3.
+export const publicRoutePattern = /^(\/|\/auth\/verify-email|\/about(\/.*)?|\/news(\/.*)?|\/blogs(\/.*)?|\/entrechat(\/.*)?|\/events(\/.*)?|\/press(\/.*)?|\/sheDiaries(\/.*)?|\/contact|\/share-your-story|\/gettingstarted(\/.*)?)$/;
 
 // ── Public API prefixes ────────────────────────────────────────────────────
 // Checked with startsWith — keep as array, easy to extend.

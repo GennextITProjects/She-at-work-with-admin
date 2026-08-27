@@ -103,6 +103,11 @@ export const fetchInitialContent = cache(async (
     } as unknown as BaseApiResponse;
   } catch (err) {
     console.error("[fetchInitialContent] Error:", err);
-    return null;
+    // Rethrow instead of returning an empty result. Public pages are now cached
+    // with a long/indefinite `revalidate` (on-demand invalidation in
+    // lib/revalidate.ts pushes real updates), so an empty-on-error return would
+    // be written into the ISR cache and served as a permanently blank page.
+    // A thrown error is not cached — the next request retries the database.
+    throw err;
   }
 });

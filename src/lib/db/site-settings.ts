@@ -31,6 +31,11 @@ export const fetchSiteSettingsByGroup = cache(async (
     return rows;
   } catch (err) {
     console.error(`[fetchSiteSettingsByGroup] Error fetching group "${group}":`, err);
-    return [];
+    // Rethrow instead of returning an empty result. Public pages are now cached
+    // with a long/indefinite `revalidate` (on-demand invalidation in
+    // lib/revalidate.ts pushes real updates), so an empty-on-error return would
+    // be written into the ISR cache and served as a permanently blank page.
+    // A thrown error is not cached — the next request retries the database.
+    throw err;
   }
 });
