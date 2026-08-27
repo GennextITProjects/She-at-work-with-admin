@@ -1,6 +1,6 @@
 /*eslint-disable  @typescript-eslint/no-unused-vars */
 // /app/lib/wordpress-converter.ts
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from "dompurify";
 
 export interface WordPressPost {
   ID: string;
