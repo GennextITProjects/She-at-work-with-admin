@@ -157,6 +157,10 @@ export default function DashboardSidebar({ role }: DashboardSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    // The sidebar is always in the viewport, so Next prefetches
+                    // every entry on every dashboard render — production logs
+                    // showed 8 RSC invocations plus their loaders per page view.
+                    prefetch={false}
                     className={cn(
                       "group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
                       isActive

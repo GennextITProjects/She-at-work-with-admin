@@ -36,6 +36,26 @@ import { DETAIL_PREFIXES } from "@/lib/revalidate";
 const LEGACY_SLUG_RE = /^[a-z0-9][a-z0-9-]{2,200}$/;
 
 /**
+ * Slugs that pass the shape guard but can never be an article.
+ *
+ * Without this they each cost one Neon query and then cache a permanent 404,
+ * which is the same failure the shape guard exists to prevent — it just misses
+ * these because they look like valid permalinks.
+ *
+ * Keep this small. It is a backstop, not a routing table: the real fix for each
+ * entry is upstream (a redirect in next.config.ts, or not linking to a page that
+ * does not exist). Every entry needs a reason.
+ */
+const NEVER_CONTENT = new Set([
+  "shediaries", // casing miss for /sheDiaries; also redirected in next.config.ts
+  "privacy",    // no such route; footer links to it exist but are commented out
+  "terms",      // ditto — cheap cover if either is ever uncommented or linked
+  "sitemap",    // crawlers probe this alongside /sitemap.xml
+  "rss",        // ditto, WordPress feed conventions
+  "feed",
+]);
+
+/**
  * Resolve an old root-level permalink to its current path.
  *
  * @returns the new pathname (e.g. `/blogs/foo-14733`), or `null` when the slug
@@ -49,6 +69,7 @@ const LEGACY_SLUG_RE = /^[a-z0-9][a-z0-9-]{2,200}$/;
 export const findLegacyTarget = cache(
   async (slug: string): Promise<string | null> => {
     if (!LEGACY_SLUG_RE.test(slug)) return null;
+    if (NEVER_CONTENT.has(slug)) return null;
 
     const [row] = await db
       .select({

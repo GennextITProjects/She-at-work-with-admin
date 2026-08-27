@@ -35,6 +35,21 @@ const nextConfig: NextConfig = {
         destination: "/blogs",
         permanent: true,
       },
+      // Casing. The route segment is `sheDiaries` (app/sheDiaries/) and Next's
+      // filesystem routing is case-sensitive, so the lowercase form is not a
+      // route — it falls through to app/[legacySlug]/page.tsx, passes the slug
+      // shape guard, spends a Neon query, 404s, and (revalidate = false) caches
+      // that 404 forever. Production logs show real browsers hitting it.
+      {
+        source: "/shediaries",
+        destination: "/sheDiaries",
+        permanent: true,
+      },
+      {
+        source: "/shediaries/:path*",
+        destination: "/sheDiaries/:path*",
+        permanent: true,
+      },
     ];
   },
 

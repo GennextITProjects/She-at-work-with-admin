@@ -520,7 +520,11 @@ export default function ContentModeration() {
 
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/dashboard/admin/content/${item.id}/edit`}>
+                            {/* prefetch={false}: this renders once per row, so the
+                                default viewport prefetch fires one RSC request —
+                                and one set of DB loaders — per listed item on
+                                every page view. Editing is a deliberate click. */}
+                            <Link href={`/dashboard/admin/content/${item.id}/edit`} prefetch={false}>
                               <Button variant="ghost" size="sm"
                                 className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50">
                                 <Edit className="h-4 w-4" />
